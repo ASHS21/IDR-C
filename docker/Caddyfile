@@ -1,0 +1,57 @@
+# =============================================================================
+# Identity Radar — Caddy Reverse Proxy Configuration
+#
+# Replace {$DOMAIN} with your actual domain, or set the DOMAIN env var.
+# For local development, use "localhost" which issues a self-signed cert.
+# For production, use your FQDN (e.g., "radar.example.com") for automatic
+# Let's Encrypt HTTPS.
+# =============================================================================
+
+{$DOMAIN:localhost} {
+	# -------------------------------------------------------------------------
+	# Compression
+	# -------------------------------------------------------------------------
+	encode gzip zstd
+
+	# -------------------------------------------------------------------------
+	# Security Headers
+	# -------------------------------------------------------------------------
+	header {
+		# HSTS — enforce HTTPS for 1 year, include subdomains
+		Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+
+		# Prevent clickjacking
+		X-Frame-Options "DENY"
+
+		# Prevent MIME-type sniffing
+		X-Content-Type-Options "nosniff"
+
+		# Referrer policy
+		Referrer-Policy "strict-origin-when-cross-origin"
+
+		# Permissions policy — restrict browser features
+		Permissions-Policy "camera=(), microphone=(), geolocation=(), payment=()"
+
+		# Content Security Policy
+		Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
+
+		# Remove server identification
+		-Server
+		-X-Powered-By
+	}
+
+	# -------------------------------------------------------------------------
+	# Reverse proxy to Next.js app
+	# -------------------------------------------------------------------------
+	reverse_proxy app:3000 {
+		# Health check
+		health_uri /api/auth/session
+		health_interval 30s
+		health_timeout 10s
+
+		# Pass real client IP
+		header_up X-Real-IP {remote_host}
+		header_up X-Forwarded-For {remote_host}
+		header_up X-Forwarded-Proto {scheme}
+	}
+}

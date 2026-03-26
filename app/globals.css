@@ -1,0 +1,126 @@
+@import "tailwindcss";
+
+/* ── Design Tokens ── */
+:root {
+  /* Backgrounds */
+  --bg-primary: #FFFFFF;
+  --bg-secondary: #F8F9FB;
+  --bg-tertiary: #F1F3F6;
+
+  /* Text */
+  --text-primary: #111318;
+  --text-secondary: #5F6B7A;
+  --text-tertiary: #8E99AB;
+
+  /* Borders */
+  --border-default: #E2E5EB;
+  --border-hover: #CCD1DA;
+
+  /* Shadows */
+  --shadow-card: 0 1px 3px rgba(0,0,0,0.04), 0 1px 2px rgba(0,0,0,0.06);
+  --shadow-dropdown: 0 4px 16px rgba(0,0,0,0.08), 0 2px 4px rgba(0,0,0,0.04);
+  --shadow-modal: 0 16px 48px rgba(0,0,0,0.12);
+
+  /* Risk/Severity */
+  --color-critical: #DC2626;
+  --color-critical-bg: #FEF2F2;
+  --color-high: #EA580C;
+  --color-high-bg: #FFF7ED;
+  --color-medium: #CA8A04;
+  --color-medium-bg: #FEFCE8;
+  --color-low: #16A34A;
+  --color-low-bg: #F0FDF4;
+  --color-info: #2563EB;
+  --color-info-bg: #EFF6FF;
+
+  /* AD Tiers */
+  --color-tier0: #DC2626;
+  --color-tier1: #EA580C;
+  --color-tier2: #5F6B7A;
+  --color-unclassified: #CA8A04;
+
+  /* Identity types */
+  --color-human: #2563EB;
+  --color-nhi: #7C3AED;
+
+  /* Radius */
+  --radius-card: 8px;
+  --radius-button: 6px;
+  --radius-badge: 4px;
+  --radius-input: 6px;
+}
+
+.dark {
+  --bg-primary: #0F1117;
+  --bg-secondary: #1A1D27;
+  --bg-tertiary: #232733;
+  --text-primary: #E8EAF0;
+  --text-secondary: #8E99AB;
+  --text-tertiary: #5F6B7A;
+  --border-default: #2E3340;
+  --border-hover: #3D4455;
+  --shadow-card: none;
+  --shadow-dropdown: 0 4px 16px rgba(0,0,0,0.3);
+  --shadow-modal: 0 16px 48px rgba(0,0,0,0.4);
+  --color-critical-bg: #2D1515;
+  --color-high-bg: #2D1A0C;
+  --color-medium-bg: #2D2604;
+  --color-low-bg: #0D2818;
+  --color-info-bg: #0D1B2D;
+}
+
+/* ── Base ── */
+body {
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+
+/* ── Typography ── */
+.text-hero { font-size: 3rem; font-weight: 600; line-height: 1.1; }
+.text-title { font-size: 1.5rem; font-weight: 600; line-height: 1.25; }
+.text-heading { font-size: 1.125rem; font-weight: 500; line-height: 1.4; }
+.text-body { font-size: 0.875rem; font-weight: 400; line-height: 1.5; }
+.text-caption { font-size: 0.75rem; font-weight: 400; line-height: 1.5; }
+.text-micro { font-size: 0.6875rem; font-weight: 500; line-height: 1.4; }
+
+/* ── Scrollbar ── */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border-default); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--border-hover); }
+
+/* ── Animations ── */
+@keyframes fade-in { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes count-up { from { opacity: 0; } to { opacity: 1; } }
+@keyframes pulse-dot { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+
+.animate-fade-in { animation: fade-in 0.3s ease-out; }
+.animate-count-up { animation: count-up 0.3s ease-out; }
+.animate-pulse-dot { animation: pulse-dot 2s ease-in-out infinite; }
+
+/* ── RTL ── */
+[dir="rtl"] .rtl\:flip { transform: scaleX(-1); }
+
+/* Switch to Arabic font family in RTL mode */
+[dir="rtl"] body {
+  font-family: var(--font-arabic), var(--font-sans), system-ui, sans-serif;
+}
+
+/* Ensure proper text alignment defaults */
+[dir="rtl"] {
+  text-align: right;
+}
+
+[dir="ltr"] {
+  text-align: left;
+}
+
+/* ── Reduced motion ── */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
