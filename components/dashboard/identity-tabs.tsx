@@ -1,8 +1,10 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { AD_TIER_CONFIG, SEVERITY_CONFIG } from '@/lib/utils/constants'
 import { formatDate, formatRelativeTime } from '@/lib/utils/formatters'
+import { BlastRadiusGraph } from '@/components/dashboard/blast-radius-graph'
+import type { BlastRadiusGraphProps } from '@/components/dashboard/blast-radius-graph'
 import type { IdentityDetail } from '@/lib/hooks/use-identities'
 
 const TABS = [
@@ -13,6 +15,7 @@ const TABS = [
   { key: 'violations', label: 'Violations' },
   { key: 'timeline', label: 'Timeline' },
   { key: 'ai_insights', label: 'AI Insights' },
+  { key: 'blast_radius', label: 'Blast Radius' },
 ] as const
 
 type TabKey = (typeof TABS)[number]['key']
@@ -69,6 +72,7 @@ export function IdentityTabs({ data }: Props) {
         {activeTab === 'violations' && <ViolationsTab violations={data.violations} />}
         {activeTab === 'timeline' && <TimelineTab timeline={data.timeline} />}
         {activeTab === 'ai_insights' && <AIInsightsTab data={data} />}
+        {activeTab === 'blast_radius' && <BlastRadiusTab identityId={data.identity.id} identityName={data.identity.displayName} />}
       </div>
     </div>
   )
@@ -569,6 +573,141 @@ function AIInsightsTab({ data }: { data: IdentityDetail }) {
           </div>
         )}
       </div>
+    </div>
+  )
+}
+
+function BlastRadiusTab({ identityId, identityName }: { identityId: string; identityName: string }) {
+  const [graphData, setGraphData] = useState<BlastRadiusGraphProps['data'] | null>(null)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [loaded, setLoaded] = useState(false)
+
+  const loadBlastRadius = useCallback(async () => {
+    setLoading(true)
+    setError(null)
+    try {
+      const res = await fetch('/api/blast-radius', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ identityId, maxDepth: 3 }),
+      })
+      if (!res.ok) throw new Error('Failed to compute blast radius')
+      const data = await res.json()
+
+      // Transform API response to graph format
+      const allNodes = (data.rings || []).flatMap((r: any) => r.nodes || [])
+      const t0Count = allNodes.filter((n: any) => n.tier === 'tier_0').length
+      const totalReachable = allNodes.length
+      const blastScore = Math.min(100, totalReachable * 2 + t0Count * 15 + allNodes.filter((n: any) => n.criticality === 'critical' || n.tier === 'tier_0').length * 5)
+
+      let highestTier = 'tier_2'
+      for (const n of allNodes) {
+        if (n.tier === 'tier_0') { highestTier = 'tier_0'; break }
+        if (n.tier === 'tier_1') highestTier = 'tier_1'
+      }
+
+      setGraphData({
+        center: {
+          id: data.center.id,
+          name: data.center.name,
+          type: data.center.type,
+          tier: data.center.tier,
+          riskScore: data.center.riskScore,
+          subType: data.center.subType,
+        },
+        rings: (data.rings || []).map((ring: any) => ({
+          level: ring.depth,
+          label: ring.depth === 1 ? 'Direct' : ring.depth === 2 ? 'Indirect' : 'Transitive',
+          nodes: (ring.nodes || []).map((n: any) => ({
+            id: n.id,
+            name: n.name,
+            type: n.type,
+            tier: n.tier,
+            subType: n.subType,
+            accessType: n.type,
+            criticality: n.criticality,
+          })),
+          edges: [],
+        })),
+        stats: {
+          totalReachable,
+          t0Reachable: t0Count,
+          blastRadiusScore: blastScore,
+          highestTier,
+        },
+      })
+      setLoaded(true)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to compute blast radius')
+    } finally {
+      setLoading(false)
+    }
+  }, [identityId])
+
+  // Auto-load on mount
+  useEffect(() => {
+    if (!loaded) loadBlastRadius()
+  }, [loaded, loadBlastRadius])
+
+  if (loading) {
+    return (
+      <div className="flex flex-col items-center py-12">
+        <div className="w-8 h-8 border-4 border-blue-300 border-t-blue-600 rounded-full animate-spin mb-4" />
+        <p className="text-sm text-slate-500">Computing blast radius for {identityName}...</p>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="text-center py-12">
+        <p className="text-sm text-red-600 mb-3">{error}</p>
+        <button
+          onClick={loadBlastRadius}
+          className="px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+        >
+          Retry
+        </button>
+      </div>
+    )
+  }
+
+  if (!graphData) return <Empty label="No blast radius data" />
+
+  return (
+    <div className="space-y-4">
+      {/* Stats */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <div className="bg-slate-50 rounded-lg p-3 border border-slate-200">
+          <p className="text-xs text-slate-500">Total Reachable</p>
+          <p className="text-lg font-bold text-slate-900">{graphData.stats.totalReachable}</p>
+        </div>
+        <div className="bg-slate-50 rounded-lg p-3 border border-slate-200">
+          <p className="text-xs text-slate-500">T0 Reachable</p>
+          <p className={`text-lg font-bold ${graphData.stats.t0Reachable > 0 ? 'text-red-600' : 'text-slate-900'}`}>
+            {graphData.stats.t0Reachable}
+          </p>
+        </div>
+        <div className="bg-slate-50 rounded-lg p-3 border border-slate-200">
+          <p className="text-xs text-slate-500">Blast Score</p>
+          <p className={`text-lg font-bold ${
+            graphData.stats.blastRadiusScore >= 70 ? 'text-red-600' :
+            graphData.stats.blastRadiusScore >= 40 ? 'text-orange-600' : 'text-slate-900'
+          }`}>
+            {graphData.stats.blastRadiusScore}
+          </p>
+        </div>
+        <div className="bg-slate-50 rounded-lg p-3 border border-slate-200">
+          <p className="text-xs text-slate-500">Highest Tier</p>
+          <p className={`text-lg font-bold ${graphData.stats.highestTier === 'tier_0' ? 'text-red-600' : 'text-slate-900'}`}>
+            {graphData.stats.highestTier?.replace('_', ' ').toUpperCase() || 'N/A'}
+          </p>
+        </div>
+      </div>
+
+      {/* Graph */}
+      <BlastRadiusGraph data={graphData} height={500} />
     </div>
   )
 }

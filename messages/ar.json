@@ -19,7 +19,9 @@
     "peerAnomalies": "شذوذ الأقران",
     "liveThreats": "التهديدات المباشرة",
     "canaryIdentities": "هويات الكناري",
-    "supplyChain": "سلسلة التوريد"
+    "supplyChain": "سلسلة التوريد",
+    "resultsHub": "مركز النتائج",
+    "gpoTracking": "تتبع سياسات المجموعة"
   },
   "navSections": {
     "overview": "نظرة عامة",
@@ -629,5 +631,82 @@
     "results": "نتائج",
     "suggestedActions": "الإجراءات المقترحة:",
     "followUp": "أسئلة المتابعة:"
+  },
+  "results": {
+    "title": "مركز نتائج الأمان",
+    "description": "عرض موحد لجميع نتائج الأمان",
+    "allFindings": "جميع النتائج",
+    "violations": "المخالفات",
+    "attackPaths": "مسارات الهجوم",
+    "threats": "التهديدات",
+    "shadowAdmins": "المشرفون الخفيون",
+    "peerAnomalies": "حالات شاذة بين الأقران",
+    "gpoRisks": "مخاطر سياسات المجموعات",
+    "canaryTriggers": "تنبيهات الكناري",
+    "exportAll": "تصدير الكل CSV",
+    "exportFiltered": "تصدير المصفاة",
+    "totalFindings": "إجمالي النتائج",
+    "unresolved": "غير محلولة",
+    "finding": "نتيجة",
+    "type": "النوع",
+    "detected": "تاريخ الاكتشاف",
+    "resolved": "تاريخ الحل",
+    "category": "الفئة",
+    "sourceIp": "عنوان المصدر",
+    "confidence": "الثقة",
+    "pathLength": "طول المسار",
+    "technique": "التقنية",
+    "deviation": "الانحراف",
+    "peerMedian": "متوسط الأقران",
+    "equivalentTo": "مكافئ لـ",
+    "canaryName": "اسم الكناري",
+    "canaryType": "نوع الكناري",
+    "triggerTime": "وقت التنبيه",
+    "autoRefresh": "تحديث تلقائي",
+    "bulkActions": "إجراءات جماعية",
+    "acknowledge": "إقرار",
+    "resolve": "حل",
+    "investigate": "تحقيق",
+    "selected": "محدد"
+  },
+  "gpo": {
+    "title": "كائنات سياسة المجموعة",
+    "description": "تتبع وتحليل تكوينات وأذونات سياسات المجموعة",
+    "allGpos": "جميع السياسات",
+    "riskyGpos": "السياسات الخطرة",
+    "linksMap": "خريطة روابط السياسات",
+    "permissions": "الأذونات",
+    "scan": "فحص السياسات",
+    "stats": {
+      "total": "إجمالي السياسات",
+      "tier0": "سياسات المستوى ٠",
+      "tier1": "سياسات المستوى ١",
+      "tier2": "سياسات المستوى ٢",
+      "risky": "سياسات خطرة",
+      "enforced": "مفروضة",
+      "unlinked": "غير مرتبطة",
+      "noOwner": "بدون مالك"
+    },
+    "fields": {
+      "name": "اسم السياسة",
+      "guid": "معرف السياسة",
+      "tier": "المستوى",
+      "status": "الحالة",
+      "links": "الروابط",
+      "owner": "المالك",
+      "version": "الإصدار",
+      "linkedOu": "الوحدة التنظيمية المرتبطة",
+      "linkOrder": "ترتيب الربط",
+      "enforced": "مفروضة",
+      "permission": "الإذن",
+      "dangerous": "خطير",
+      "tierGap": "فجوة المستوى"
+    },
+    "risks": {
+      "t2EditT0": "هوية المستوى ٢ يمكنها تعديل سياسة مرتبطة بوحدة المستوى ٠",
+      "noOwner": "السياسة ليس لها مالك معين",
+      "unlinked": "السياسة غير مرتبطة بأي وحدة تنظيمية",
+      "weakPerms": "غير المشرف يمكنه تعديل أمان السياسة"
+    }
   }
 }

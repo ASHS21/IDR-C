@@ -8,6 +8,9 @@ import {
   groups,
   adDelegations,
   aclEntries,
+  gpoObjects,
+  gpoLinks,
+  gpoPermissions,
 } from '@/lib/db/schema'
 
 // ── Types ──
@@ -15,7 +18,7 @@ import {
 export interface GraphEdge {
   source: string
   target: string
-  type: 'entitlement' | 'membership' | 'manager' | 'owner' | 'delegation' | 'acl'
+  type: 'entitlement' | 'membership' | 'manager' | 'owner' | 'delegation' | 'acl' | 'gpo_edit' | 'gpo_link'
   label: string
   properties?: Record<string, any>
   weight: number // lower = more dangerous
@@ -102,6 +105,9 @@ export async function buildAdjacencyList(orgId: string): Promise<AdjacencyList> 
     orgAcls,
     orgResources,
     orgGroups,
+    orgGpos,
+    orgGpoLinks,
+    orgGpoPerms,
   ] = await Promise.all([
     db.select({
       id: identities.id,
@@ -159,6 +165,27 @@ export async function buildAdjacencyList(orgId: string): Promise<AdjacencyList> 
       adTier: groups.adTier,
       isPrivileged: groups.isPrivileged,
     }).from(groups).where(eq(groups.orgId, orgId)),
+
+    db.select({
+      id: gpoObjects.id,
+      name: gpoObjects.name,
+      adTier: gpoObjects.adTier,
+    }).from(gpoObjects).where(eq(gpoObjects.orgId, orgId)),
+
+    db.select({
+      gpoId: gpoLinks.gpoId,
+      linkedOu: gpoLinks.linkedOu,
+      adTierOfOu: gpoLinks.adTierOfOu,
+    }).from(gpoLinks).where(eq(gpoLinks.orgId, orgId)),
+
+    db.select({
+      gpoId: gpoPermissions.gpoId,
+      trusteeIdentityId: gpoPermissions.trusteeIdentityId,
+      trusteeGroupId: gpoPermissions.trusteeGroupId,
+      permissionType: gpoPermissions.permissionType,
+      dangerous: gpoPermissions.dangerous,
+      adTierOfGpo: gpoPermissions.adTierOfGpo,
+    }).from(gpoPermissions).where(eq(gpoPermissions.orgId, orgId)),
   ])
 
   // Register node metadata
@@ -267,6 +294,50 @@ export async function buildAdjacencyList(orgId: string): Promise<AdjacencyList> 
         label: a.rights.join(', '),
         properties: { aclId: a.id, rights: a.rights, tier: a.adTierOfObject },
         weight: aclWeight(a.rights),
+      })
+    }
+  }
+
+  // GPO node metadata
+  for (const g of orgGpos) {
+    nodeMetadata.set(g.id, { type: 'gpo', tier: g.adTier, name: g.name })
+  }
+
+  // GPO link edges: GPO → OU (synthetic node)
+  for (const gl of orgGpoLinks) {
+    const syntheticId = `dn:${gl.linkedOu}`
+    if (!nodeMetadata.has(syntheticId)) {
+      nodeMetadata.set(syntheticId, {
+        type: 'ou',
+        tier: gl.adTierOfOu,
+        name: gl.linkedOu.split(',')[0]?.replace(/^OU=|^CN=/, '') || gl.linkedOu,
+      })
+    }
+    addEdge({
+      source: gl.gpoId,
+      target: syntheticId,
+      type: 'gpo_link',
+      label: 'linked to',
+      properties: { adTierOfOu: gl.adTierOfOu },
+      weight: gl.adTierOfOu === 'tier_0' ? 2 : 6,
+    })
+  }
+
+  // GPO permission edges: identity/group → GPO (who can edit)
+  for (const gp of orgGpoPerms) {
+    const principalId = gp.trusteeIdentityId || gp.trusteeGroupId
+    if (!principalId) continue
+
+    // Only add edges for permissions that enable escalation
+    const editPerms = ['edit_settings', 'modify_security', 'full_control', 'link_gpo']
+    if (editPerms.includes(gp.permissionType)) {
+      addEdge({
+        source: principalId,
+        target: gp.gpoId,
+        type: 'gpo_edit',
+        label: gp.permissionType.replace(/_/g, ' '),
+        properties: { dangerous: gp.dangerous, tier: gp.adTierOfGpo },
+        weight: gp.dangerous ? 1 : 3,
       })
     }
   }

@@ -34,3 +34,6 @@ export * from './peer-groups'
 
 // Phase N5: AI Chat
 export * from './chat-sessions'
+
+// GPO Tracking
+export * from './gpo'

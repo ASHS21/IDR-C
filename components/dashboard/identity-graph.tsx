@@ -8,7 +8,7 @@ import * as d3 from 'd3'
 export interface GraphNode {
   id: string
   label: string
-  type: 'identity' | 'resource' | 'group' | 'violation' | 'account'
+  type: 'identity' | 'resource' | 'group' | 'violation' | 'account' | 'gpo'
   subType?: string
   tier?: string
   riskScore?: number
@@ -25,7 +25,7 @@ export interface GraphNode {
 export interface GraphLink {
   source: string | GraphNode
   target: string | GraphNode
-  type: 'entitlement' | 'membership' | 'manager' | 'owner' | 'violation' | 'account'
+  type: 'entitlement' | 'membership' | 'manager' | 'owner' | 'violation' | 'account' | 'gpo_link' | 'gpo_edit'
   label?: string
   properties?: Record<string, any>
 }
@@ -54,6 +54,7 @@ const NODE_COLORS: Record<string, string> = {
   group: '#CA8A04',
   violation: '#DC2626',
   account: '#4F46E5',
+  gpo: '#0891B2',
 }
 
 const TIER_RING: Record<string, string> = {
@@ -69,6 +70,8 @@ const EDGE_STYLES: Record<string, { stroke: string; dasharray: string; width: nu
   owner: { stroke: '#8B5CF6', dasharray: '6,3', width: 1.5 },
   violation: { stroke: '#DC2626', dasharray: 'none', width: 2 },
   account: { stroke: '#4F46E5', dasharray: '3,3', width: 1 },
+  gpo_link: { stroke: '#0891B2', dasharray: '5,3', width: 1.2 },
+  gpo_edit: { stroke: '#DC2626', dasharray: 'none', width: 1.5 },
 }
 
 const SEVERITY_COLORS: Record<string, string> = {
@@ -283,6 +286,8 @@ export function IdentityGraph({
         if (d.type === 'owner') return 'url(#arrow-owner)'
         if (d.type === 'violation') return 'url(#arrow-violation)'
         if (d.type === 'account') return 'url(#arrow-account)'
+        if (d.type === 'gpo_link') return 'url(#arrow-gpo-link)'
+        if (d.type === 'gpo_edit') return 'url(#arrow-gpo-edit)'
         return null
       })
 
@@ -347,6 +352,31 @@ export function IdentityGraph({
           }
         })
       )
+
+    // Arrow markers for GPO edges
+    defs.append('marker')
+      .attr('id', 'arrow-gpo-link')
+      .attr('viewBox', '0 -5 10 10')
+      .attr('refX', 20)
+      .attr('refY', 0)
+      .attr('markerWidth', 6)
+      .attr('markerHeight', 6)
+      .attr('orient', 'auto')
+      .append('path')
+      .attr('fill', '#0891B2')
+      .attr('d', 'M0,-5L10,0L0,5')
+
+    defs.append('marker')
+      .attr('id', 'arrow-gpo-edit')
+      .attr('viewBox', '0 -5 10 10')
+      .attr('refX', 20)
+      .attr('refY', 0)
+      .attr('markerWidth', 6)
+      .attr('markerHeight', 6)
+      .attr('orient', 'auto')
+      .append('path')
+      .attr('fill', '#DC2626')
+      .attr('d', 'M0,-5L10,0L0,5')
 
     // Draw node shapes
     node.each(function (d) {
@@ -421,6 +451,17 @@ export function IdentityGraph({
           .attr('points', hex)
           .attr('fill', d.properties?.privileged ? '#7C3AED' : '#4F46E5')
           .attr('opacity', 0.85)
+      } else if (d.type === 'gpo') {
+        // Rounded rectangle (pentagon-like) for GPO
+        const s = radius * 1.5
+        el.append('rect')
+          .attr('x', -s / 2).attr('y', -s / 2)
+          .attr('width', s).attr('height', s)
+          .attr('rx', 4)
+          .attr('fill', '#0891B2')
+          .attr('opacity', 0.85)
+          .attr('stroke', TIER_RING[d.tier || ''] || 'none')
+          .attr('stroke-width', 1.5)
       }
 
       // Label
@@ -533,6 +574,7 @@ export function IdentityGraph({
           </svg>
           Account
         </div>
+        <div className="flex items-center gap-2"><span className="w-3 h-3 rounded" style={{ background: '#0891B2' }} /> GPO</div>
         <div className="flex items-center gap-2"><span className="w-3 h-3 rounded-full border-2 border-red-500" /> Tier Violation</div>
         <div className="border-t border-[var(--border-default)] my-1 pt-1">
           <p className="text-[10px] font-semibold text-[var(--text-tertiary)] uppercase tracking-wide mb-1">Edges</p>
@@ -542,6 +584,8 @@ export function IdentityGraph({
           <div className="flex items-center gap-2"><span className="w-4 h-0.5 border-t border-dashed" style={{ borderColor: '#8B5CF6' }} /> Owner</div>
           <div className="flex items-center gap-2"><span className="w-4 h-[2px]" style={{ background: '#DC2626' }} /> Violation</div>
           <div className="flex items-center gap-2"><span className="w-4 h-0.5 border-t border-dashed" style={{ borderColor: '#4F46E5' }} /> Account</div>
+          <div className="flex items-center gap-2"><span className="w-4 h-0.5 border-t border-dashed" style={{ borderColor: '#0891B2' }} /> GPO Link</div>
+          <div className="flex items-center gap-2"><span className="w-4 h-[1.5px]" style={{ background: '#DC2626' }} /> GPO Edit</div>
         </div>
       </div>
 

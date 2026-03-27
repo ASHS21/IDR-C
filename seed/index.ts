@@ -1517,6 +1517,121 @@ async function seed() {
     console.log('Created 2 sample chat sessions')
   }
 
+  // ── GPO Objects (15) ──
+  const gpoValues: (typeof schema.gpoObjects.$inferInsert)[] = [
+    // Tier 0 GPOs
+    { name: 'Default Domain Policy', displayName: 'Default Domain Policy', gpoGuid: '{31B2F340-016D-11D2-945F-00C04FB984F9}', status: 'enforced', adTier: 'tier_0', version: 12, description: 'Domain-wide security settings and password policy', ownerIdentityId: t0Identities[0]?.id, orgId: org.id, createdInSourceAt: daysAgo(365), modifiedInSourceAt: daysAgo(15) },
+    { name: 'Default Domain Controllers Policy', displayName: 'Default DC Policy', gpoGuid: '{6AC1786C-016F-11D2-945F-00C04FB984F9}', status: 'enforced', adTier: 'tier_0', version: 8, description: 'Security settings for all domain controllers', ownerIdentityId: t0Identities[0]?.id, orgId: org.id, createdInSourceAt: daysAgo(365), modifiedInSourceAt: daysAgo(30) },
+    { name: 'Tier 0 Admin Hardening', displayName: 'T0 Admin Hardening', gpoGuid: '{A1B2C3D4-0001-0001-0001-000000000001}', status: 'enabled', adTier: 'tier_0', version: 5, description: 'Restricts T0 admin logon to T0 systems only', ownerIdentityId: t0Identities[0]?.id, orgId: org.id, createdInSourceAt: daysAgo(180), modifiedInSourceAt: daysAgo(7) },
+    { name: 'PKI Certificate Autoenrollment', displayName: 'PKI Autoenroll', gpoGuid: '{A1B2C3D4-0001-0001-0001-000000000002}', status: 'enabled', adTier: 'tier_0', version: 3, description: 'Certificate autoenrollment for PKI infrastructure', orgId: org.id, createdInSourceAt: daysAgo(200) },
+    { name: 'LAPS Configuration - DCs', displayName: 'LAPS DCs', gpoGuid: '{A1B2C3D4-0001-0001-0001-000000000003}', status: 'enabled', adTier: 'tier_0', version: 2, description: 'Local admin password solution for domain controllers', ownerIdentityId: t0Identities[1]?.id, orgId: org.id, createdInSourceAt: daysAgo(120) },
+    { name: 'Kerberos Authentication Policy', displayName: 'Kerberos Policy', gpoGuid: '{A1B2C3D4-0001-0001-0001-000000000004}', status: 'enforced', adTier: 'tier_0', version: 4, description: 'Kerberos ticket lifetime and renewal settings', ownerIdentityId: t0Identities[0]?.id, orgId: org.id, createdInSourceAt: daysAgo(300) },
+    { name: 'AD Connect Sync Policy', displayName: 'AD Connect Sync', gpoGuid: '{A1B2C3D4-0001-0001-0001-000000000005}', status: 'enabled', adTier: 'tier_0', version: 1, description: 'Policy for Azure AD Connect sync server', orgId: org.id, createdInSourceAt: daysAgo(90) },
+    { name: 'ADFS Server Baseline', displayName: 'ADFS Baseline', gpoGuid: '{A1B2C3D4-0001-0001-0001-000000000006}', status: 'enabled', adTier: 'tier_0', version: 2, description: 'Baseline security for ADFS farm servers', ownerIdentityId: t0Identities[0]?.id, orgId: org.id, createdInSourceAt: daysAgo(150) },
+    // Tier 1 GPOs
+    { name: 'Server Baseline Security', displayName: 'Server Baseline', gpoGuid: '{B2C3D4E5-0002-0002-0002-000000000001}', status: 'enabled', adTier: 'tier_1', version: 7, description: 'Baseline hardening for all member servers', ownerIdentityId: t1Identities[0]?.id, orgId: org.id, createdInSourceAt: daysAgo(250), modifiedInSourceAt: daysAgo(20) },
+    { name: 'Application Server Lockdown', displayName: 'App Server Lockdown', gpoGuid: '{B2C3D4E5-0002-0002-0002-000000000002}', status: 'enabled', adTier: 'tier_1', version: 4, description: 'Restricted logon and audit settings for app servers', ownerIdentityId: t1Identities[1]?.id, orgId: org.id, createdInSourceAt: daysAgo(180) },
+    { name: 'SQL Server Hardening', displayName: 'SQL Hardening', gpoGuid: '{B2C3D4E5-0002-0002-0002-000000000003}', status: 'enabled', adTier: 'tier_1', version: 3, description: 'SQL Server specific security settings', orgId: org.id, createdInSourceAt: daysAgo(160) },
+    // Tier 2 GPOs
+    { name: 'Workstation Lockdown', displayName: 'WS Lockdown', gpoGuid: '{C3D4E5F6-0003-0003-0003-000000000001}', status: 'enabled', adTier: 'tier_2', version: 9, description: 'Standard workstation security baseline', ownerIdentityId: t2Identities[0]?.id, orgId: org.id, createdInSourceAt: daysAgo(300), modifiedInSourceAt: daysAgo(5) },
+    { name: 'Windows Update Policy', displayName: 'WSUS Policy', gpoGuid: '{C3D4E5F6-0003-0003-0003-000000000002}', status: 'enabled', adTier: 'tier_2', version: 6, description: 'WSUS update schedule and approval settings', ownerIdentityId: t2Identities[1]?.id, orgId: org.id, createdInSourceAt: daysAgo(280) },
+    { name: 'BitLocker Drive Encryption', displayName: 'BitLocker', gpoGuid: '{C3D4E5F6-0003-0003-0003-000000000003}', status: 'enabled', adTier: 'tier_2', version: 3, description: 'BitLocker encryption policy for workstations', orgId: org.id, createdInSourceAt: daysAgo(200) },
+    { name: 'Remote Desktop Restrictions', displayName: 'RDP Restrictions', gpoGuid: '{C3D4E5F6-0003-0003-0003-000000000004}', status: 'disabled', adTier: 'tier_2', version: 2, description: 'RDP access restrictions (currently disabled)', orgId: org.id, createdInSourceAt: daysAgo(100) },
+  ]
+  const allGpos = await db.insert(schema.gpoObjects).values(gpoValues).returning()
+  console.log(`Created ${allGpos.length} GPO objects`)
+
+  const t0Gpos = allGpos.filter(g => g.adTier === 'tier_0')
+  const t1Gpos = allGpos.filter(g => g.adTier === 'tier_1')
+  const t2Gpos = allGpos.filter(g => g.adTier === 'tier_2')
+
+  // ── GPO Links (25) ──
+  const gpoLinkValues: (typeof schema.gpoLinks.$inferInsert)[] = [
+    // T0 GPOs → T0 OUs
+    { gpoId: t0Gpos[0].id, linkedOu: 'DC=acmefs,DC=local', linkOrder: 0, enforced: true, adTierOfOu: 'tier_0', orgId: org.id },
+    { gpoId: t0Gpos[1].id, linkedOu: 'OU=Domain Controllers,DC=acmefs,DC=local', linkOrder: 0, enforced: true, adTierOfOu: 'tier_0', orgId: org.id },
+    { gpoId: t0Gpos[2].id, linkedOu: 'OU=Tier 0 Admins,OU=Admin,DC=acmefs,DC=local', linkOrder: 0, enforced: false, adTierOfOu: 'tier_0', orgId: org.id },
+    { gpoId: t0Gpos[3].id, linkedOu: 'OU=PKI,OU=Tier 0,DC=acmefs,DC=local', linkOrder: 0, enforced: false, adTierOfOu: 'tier_0', orgId: org.id },
+    { gpoId: t0Gpos[4].id, linkedOu: 'OU=Domain Controllers,DC=acmefs,DC=local', linkOrder: 1, enforced: false, adTierOfOu: 'tier_0', orgId: org.id },
+    { gpoId: t0Gpos[5].id, linkedOu: 'DC=acmefs,DC=local', linkOrder: 1, enforced: true, adTierOfOu: 'tier_0', orgId: org.id },
+    { gpoId: t0Gpos[6].id, linkedOu: 'OU=AD Connect,OU=Tier 0,DC=acmefs,DC=local', linkOrder: 0, enforced: false, adTierOfOu: 'tier_0', orgId: org.id },
+    { gpoId: t0Gpos[7].id, linkedOu: 'OU=ADFS,OU=Tier 0,DC=acmefs,DC=local', linkOrder: 0, enforced: false, adTierOfOu: 'tier_0', orgId: org.id },
+    // T1 GPOs → T1 OUs
+    { gpoId: t1Gpos[0].id, linkedOu: 'OU=Servers,DC=acmefs,DC=local', linkOrder: 0, enforced: false, adTierOfOu: 'tier_1', orgId: org.id },
+    { gpoId: t1Gpos[0].id, linkedOu: 'OU=Application Servers,OU=Servers,DC=acmefs,DC=local', linkOrder: 1, enforced: false, adTierOfOu: 'tier_1', orgId: org.id },
+    { gpoId: t1Gpos[1].id, linkedOu: 'OU=Application Servers,OU=Servers,DC=acmefs,DC=local', linkOrder: 0, enforced: false, adTierOfOu: 'tier_1', orgId: org.id },
+    { gpoId: t1Gpos[2].id, linkedOu: 'OU=SQL Servers,OU=Servers,DC=acmefs,DC=local', linkOrder: 0, enforced: false, adTierOfOu: 'tier_1', orgId: org.id },
+    // T2 GPOs → T2 OUs
+    { gpoId: t2Gpos[0].id, linkedOu: 'OU=Workstations,DC=acmefs,DC=local', linkOrder: 0, enforced: false, adTierOfOu: 'tier_2', orgId: org.id },
+    { gpoId: t2Gpos[0].id, linkedOu: 'OU=Laptops,OU=Workstations,DC=acmefs,DC=local', linkOrder: 1, enforced: false, adTierOfOu: 'tier_2', orgId: org.id },
+    { gpoId: t2Gpos[1].id, linkedOu: 'OU=Workstations,DC=acmefs,DC=local', linkOrder: 1, enforced: false, adTierOfOu: 'tier_2', orgId: org.id },
+    { gpoId: t2Gpos[2].id, linkedOu: 'OU=Laptops,OU=Workstations,DC=acmefs,DC=local', linkOrder: 0, enforced: false, adTierOfOu: 'tier_2', orgId: org.id },
+    // Cross-tier links (risky: T1 GPO linked to T0 OU)
+    { gpoId: t1Gpos[0].id, linkedOu: 'OU=Domain Controllers,DC=acmefs,DC=local', linkOrder: 2, enforced: false, adTierOfOu: 'tier_0', orgId: org.id },
+    // T2 GPO linked to T1 OU
+    { gpoId: t2Gpos[0].id, linkedOu: 'OU=Servers,DC=acmefs,DC=local', linkOrder: 2, enforced: false, adTierOfOu: 'tier_1', orgId: org.id },
+    // More T0 links
+    { gpoId: t0Gpos[2].id, linkedOu: 'OU=Domain Controllers,DC=acmefs,DC=local', linkOrder: 2, enforced: false, adTierOfOu: 'tier_0', orgId: org.id },
+    // T1 linked to workstations (over-reaching)
+    { gpoId: t1Gpos[1].id, linkedOu: 'OU=Workstations,DC=acmefs,DC=local', linkOrder: 2, enforced: false, adTierOfOu: 'tier_2', orgId: org.id },
+    // More T2 OU links
+    { gpoId: t2Gpos[3].id, linkedOu: 'OU=Workstations,DC=acmefs,DC=local', linkOrder: 3, linkEnabled: false, enforced: false, adTierOfOu: 'tier_2', orgId: org.id },
+    // Additional T0 OU links
+    { gpoId: t0Gpos[0].id, linkedOu: 'OU=Tier 0 Admins,OU=Admin,DC=acmefs,DC=local', linkOrder: 1, enforced: true, adTierOfOu: 'tier_0', orgId: org.id },
+    { gpoId: t0Gpos[5].id, linkedOu: 'OU=Domain Controllers,DC=acmefs,DC=local', linkOrder: 3, enforced: true, adTierOfOu: 'tier_0', orgId: org.id },
+    // T1 to T1
+    { gpoId: t1Gpos[2].id, linkedOu: 'OU=Database Servers,OU=Servers,DC=acmefs,DC=local', linkOrder: 1, enforced: false, adTierOfOu: 'tier_1', orgId: org.id },
+    { gpoId: t1Gpos[0].id, linkedOu: 'OU=File Servers,OU=Servers,DC=acmefs,DC=local', linkOrder: 0, enforced: false, adTierOfOu: 'tier_1', orgId: org.id },
+  ]
+  await db.insert(schema.gpoLinks).values(gpoLinkValues)
+  console.log(`Created ${gpoLinkValues.length} GPO links`)
+
+  // ── GPO Permissions (30) ──
+  const gpoPermValues: (typeof schema.gpoPermissions.$inferInsert)[] = [
+    // T0 identities with proper permissions on T0 GPOs (safe)
+    { gpoId: t0Gpos[0].id, trusteeIdentityId: t0Identities[0]?.id, trusteeName: t0Identities[0]?.displayName || 'T0 Admin', permissionType: 'full_control', dangerous: false, adTierOfGpo: 'tier_0', orgId: org.id },
+    { gpoId: t0Gpos[1].id, trusteeIdentityId: t0Identities[0]?.id, trusteeName: t0Identities[0]?.displayName || 'T0 Admin', permissionType: 'edit_settings', dangerous: false, adTierOfGpo: 'tier_0', orgId: org.id },
+    { gpoId: t0Gpos[2].id, trusteeIdentityId: t0Identities[1]?.id, trusteeName: t0Identities[1]?.displayName || 'T0 Admin 2', permissionType: 'edit_settings', dangerous: false, adTierOfGpo: 'tier_0', orgId: org.id },
+    // DANGEROUS: T2 identities with edit on T0 GPOs
+    { gpoId: t0Gpos[0].id, trusteeIdentityId: t2Identities[0]?.id, trusteeName: t2Identities[0]?.displayName || 'T2 User 1', permissionType: 'edit_settings', dangerous: true, adTierOfGpo: 'tier_0', orgId: org.id },
+    { gpoId: t0Gpos[1].id, trusteeIdentityId: t2Identities[1]?.id, trusteeName: t2Identities[1]?.displayName || 'T2 User 2', permissionType: 'modify_security', dangerous: true, adTierOfGpo: 'tier_0', orgId: org.id },
+    { gpoId: t0Gpos[2].id, trusteeIdentityId: t2Identities[2]?.id, trusteeName: t2Identities[2]?.displayName || 'T2 User 3', permissionType: 'full_control', dangerous: true, adTierOfGpo: 'tier_0', orgId: org.id },
+    { gpoId: t0Gpos[3].id, trusteeIdentityId: t2Identities[3]?.id, trusteeName: t2Identities[3]?.displayName || 'T2 User 4', permissionType: 'edit_settings', dangerous: true, adTierOfGpo: 'tier_0', orgId: org.id },
+    { gpoId: t0Gpos[5].id, trusteeIdentityId: t2Identities[4]?.id, trusteeName: t2Identities[4]?.displayName || 'T2 User 5', permissionType: 'link_gpo', dangerous: true, adTierOfGpo: 'tier_0', orgId: org.id },
+    // DANGEROUS: T1 identities with edit on T0 GPOs
+    { gpoId: t0Gpos[4].id, trusteeIdentityId: t1Identities[0]?.id, trusteeName: t1Identities[0]?.displayName || 'T1 Admin', permissionType: 'edit_settings', dangerous: true, adTierOfGpo: 'tier_0', orgId: org.id },
+    { gpoId: t0Gpos[6].id, trusteeIdentityId: t1Identities[1]?.id, trusteeName: t1Identities[1]?.displayName || 'T1 Admin 2', permissionType: 'modify_security', dangerous: true, adTierOfGpo: 'tier_0', orgId: org.id },
+    // T1 identities with proper permissions on T1 GPOs (safe)
+    { gpoId: t1Gpos[0].id, trusteeIdentityId: t1Identities[0]?.id, trusteeName: t1Identities[0]?.displayName || 'T1 Admin', permissionType: 'full_control', dangerous: false, adTierOfGpo: 'tier_1', orgId: org.id },
+    { gpoId: t1Gpos[1].id, trusteeIdentityId: t1Identities[1]?.id, trusteeName: t1Identities[1]?.displayName || 'T1 Admin 2', permissionType: 'edit_settings', dangerous: false, adTierOfGpo: 'tier_1', orgId: org.id },
+    { gpoId: t1Gpos[2].id, trusteeIdentityId: t1Identities[2]?.id, trusteeName: t1Identities[2]?.displayName || 'T1 Admin 3', permissionType: 'edit_settings', dangerous: false, adTierOfGpo: 'tier_1', orgId: org.id },
+    // DANGEROUS: T2 with edit on T1 GPOs
+    { gpoId: t1Gpos[0].id, trusteeIdentityId: t2Identities[5]?.id, trusteeName: t2Identities[5]?.displayName || 'T2 User 6', permissionType: 'edit_settings', dangerous: true, adTierOfGpo: 'tier_1', orgId: org.id },
+    { gpoId: t1Gpos[1].id, trusteeIdentityId: t2Identities[6]?.id, trusteeName: t2Identities[6]?.displayName || 'T2 User 7', permissionType: 'modify_security', dangerous: true, adTierOfGpo: 'tier_1', orgId: org.id },
+    // T2 proper permissions on T2 GPOs (safe)
+    { gpoId: t2Gpos[0].id, trusteeIdentityId: t2Identities[0]?.id, trusteeName: t2Identities[0]?.displayName || 'T2 User 1', permissionType: 'edit_settings', dangerous: false, adTierOfGpo: 'tier_2', orgId: org.id },
+    { gpoId: t2Gpos[1].id, trusteeIdentityId: t2Identities[1]?.id, trusteeName: t2Identities[1]?.displayName || 'T2 User 2', permissionType: 'edit_settings', dangerous: false, adTierOfGpo: 'tier_2', orgId: org.id },
+    // Read permissions (safe)
+    { gpoId: t0Gpos[0].id, trusteeIdentityId: t1Identities[3]?.id, trusteeName: t1Identities[3]?.displayName || 'T1 Reader', permissionType: 'read', dangerous: false, adTierOfGpo: 'tier_0', orgId: org.id },
+    { gpoId: t0Gpos[1].id, trusteeIdentityId: t2Identities[7]?.id, trusteeName: t2Identities[7]?.displayName || 'T2 Reader', permissionType: 'read', dangerous: false, adTierOfGpo: 'tier_0', orgId: org.id },
+    { gpoId: t1Gpos[0].id, trusteeIdentityId: t2Identities[8]?.id, trusteeName: t2Identities[8]?.displayName || 'T2 Reader 2', permissionType: 'read', dangerous: false, adTierOfGpo: 'tier_1', orgId: org.id },
+    // Apply permissions (safe)
+    { gpoId: t2Gpos[0].id, trusteeGroupId: allGroups.find(g => !g.isPrivileged)?.id, trusteeName: 'Domain Computers', permissionType: 'apply', dangerous: false, adTierOfGpo: 'tier_2', orgId: org.id },
+    { gpoId: t2Gpos[1].id, trusteeGroupId: allGroups.find(g => !g.isPrivileged)?.id, trusteeName: 'Domain Computers', permissionType: 'apply', dangerous: false, adTierOfGpo: 'tier_2', orgId: org.id },
+    // Group with edit permission on T0 GPO (dangerous)
+    { gpoId: t0Gpos[7].id, trusteeGroupId: allGroups.find(g => g.adTier === 'tier_2')?.id || allGroups[allGroups.length - 1].id, trusteeName: allGroups.find(g => g.adTier === 'tier_2')?.name || 'T2 Group', permissionType: 'edit_settings', dangerous: true, adTierOfGpo: 'tier_0', orgId: org.id },
+    // More read/apply permissions to fill 30
+    { gpoId: t0Gpos[3].id, trusteeIdentityId: t0Identities[0]?.id, trusteeName: t0Identities[0]?.displayName || 'T0 Admin', permissionType: 'full_control', dangerous: false, adTierOfGpo: 'tier_0', orgId: org.id },
+    { gpoId: t0Gpos[4].id, trusteeIdentityId: t0Identities[0]?.id, trusteeName: t0Identities[0]?.displayName || 'T0 Admin', permissionType: 'full_control', dangerous: false, adTierOfGpo: 'tier_0', orgId: org.id },
+    { gpoId: t0Gpos[5].id, trusteeIdentityId: t0Identities[0]?.id, trusteeName: t0Identities[0]?.displayName || 'T0 Admin', permissionType: 'full_control', dangerous: false, adTierOfGpo: 'tier_0', orgId: org.id },
+    { gpoId: t0Gpos[6].id, trusteeIdentityId: t0Identities[0]?.id, trusteeName: t0Identities[0]?.displayName || 'T0 Admin', permissionType: 'full_control', dangerous: false, adTierOfGpo: 'tier_0', orgId: org.id },
+    { gpoId: t0Gpos[7].id, trusteeIdentityId: t0Identities[0]?.id, trusteeName: t0Identities[0]?.displayName || 'T0 Admin', permissionType: 'full_control', dangerous: false, adTierOfGpo: 'tier_0', orgId: org.id },
+    { gpoId: t2Gpos[2].id, trusteeIdentityId: t2Identities[2]?.id, trusteeName: t2Identities[2]?.displayName || 'T2 User 3', permissionType: 'edit_settings', dangerous: false, adTierOfGpo: 'tier_2', orgId: org.id },
+    { gpoId: t2Gpos[3].id, trusteeIdentityId: t2Identities[3]?.id, trusteeName: t2Identities[3]?.displayName || 'T2 User 4', permissionType: 'edit_settings', dangerous: false, adTierOfGpo: 'tier_2', orgId: org.id },
+  ]
+  await db.insert(schema.gpoPermissions).values(gpoPermValues)
+  console.log(`Created ${gpoPermValues.length} GPO permissions`)
+
   console.log('\nSeed complete!')
   console.log('Login: admin@acmefs.sa / admin123')
 

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/lib/auth/config'
 import { db } from '@/lib/db'
-import { identities, entitlements, resources, groupMemberships, groups, policyViolations, policies, accounts } from '@/lib/db/schema'
+import { identities, entitlements, resources, groupMemberships, groups, policyViolations, policies, accounts, gpoObjects, gpoLinks, gpoPermissions } from '@/lib/db/schema'
 import { eq, and, desc, inArray } from 'drizzle-orm'
 
 export async function GET(req: NextRequest) {
@@ -138,11 +138,45 @@ export async function GET(req: NextRequest) {
   const allIdentities = [...topIdentities, ...extraIdentities]
   const allIdentityIds = new Set(allIdentities.map(i => i.id))
 
+  // Get GPO data
+  const gpoData = await db.select({
+    id: gpoObjects.id,
+    name: gpoObjects.name,
+    adTier: gpoObjects.adTier,
+    status: gpoObjects.status,
+    gpoGuid: gpoObjects.gpoGuid,
+    version: gpoObjects.version,
+  }).from(gpoObjects)
+    .where(eq(gpoObjects.orgId, orgId))
+    .limit(100)
+
+  const gpoIds = gpoData.map(g => g.id)
+
+  const gpoLinkData = gpoIds.length > 0 ? await db.select({
+    gpoId: gpoLinks.gpoId,
+    linkedOu: gpoLinks.linkedOu,
+    adTierOfOu: gpoLinks.adTierOfOu,
+    enforced: gpoLinks.enforced,
+  }).from(gpoLinks)
+    .where(eq(gpoLinks.orgId, orgId))
+    .limit(300) : []
+
+  const gpoPermData = gpoIds.length > 0 ? await db.select({
+    gpoId: gpoPermissions.gpoId,
+    trusteeIdentityId: gpoPermissions.trusteeIdentityId,
+    trusteeGroupId: gpoPermissions.trusteeGroupId,
+    trusteeName: gpoPermissions.trusteeName,
+    permissionType: gpoPermissions.permissionType,
+    dangerous: gpoPermissions.dangerous,
+  }).from(gpoPermissions)
+    .where(eq(gpoPermissions.orgId, orgId))
+    .limit(300) : []
+
   // Build nodes and links
   const nodes: Array<{
     id: string
     label: string
-    type: 'identity' | 'resource' | 'group' | 'violation' | 'account'
+    type: 'identity' | 'resource' | 'group' | 'violation' | 'account' | 'gpo'
     subType?: string
     tier?: string
     riskScore?: number
@@ -155,7 +189,7 @@ export async function GET(req: NextRequest) {
   const links: Array<{
     source: string
     target: string
-    type: 'entitlement' | 'membership' | 'manager' | 'owner' | 'violation' | 'account'
+    type: 'entitlement' | 'membership' | 'manager' | 'owner' | 'violation' | 'account' | 'gpo_link' | 'gpo_edit'
     label?: string
     properties?: Record<string, any>
   }> = []
@@ -367,6 +401,75 @@ export async function GET(req: NextRequest) {
         type: 'owner',
         label: 'owns',
       })
+    }
+  }
+
+  // Add GPO nodes
+  for (const gpo of gpoData) {
+    if (!nodeSet.has(gpo.id)) {
+      nodeSet.add(gpo.id)
+      nodes.push({
+        id: gpo.id,
+        label: gpo.name,
+        type: 'gpo',
+        tier: gpo.adTier,
+        properties: {
+          name: gpo.name,
+          adTier: gpo.adTier,
+          status: gpo.status,
+          gpoGuid: gpo.gpoGuid,
+          version: gpo.version,
+        },
+      })
+    }
+  }
+
+  // Add GPO link edges (GPO → OU synthetic node)
+  for (const link of gpoLinkData) {
+    const ouNodeId = `ou:${link.linkedOu}`
+    if (!nodeSet.has(ouNodeId)) {
+      nodeSet.add(ouNodeId)
+      nodes.push({
+        id: ouNodeId,
+        label: link.linkedOu.split(',')[0]?.replace(/^OU=|^CN=/, '') || link.linkedOu,
+        type: 'resource',
+        subType: 'ou',
+        tier: link.adTierOfOu,
+        properties: {
+          dn: link.linkedOu,
+          adTier: link.adTierOfOu,
+        },
+      })
+    }
+    links.push({
+      source: link.gpoId,
+      target: ouNodeId,
+      type: 'gpo_link',
+      label: link.enforced ? 'enforced link' : 'linked',
+      properties: {
+        enforced: link.enforced,
+        adTierOfOu: link.adTierOfOu,
+      },
+    })
+  }
+
+  // Add GPO edit edges (identity → GPO)
+  for (const perm of gpoPermData) {
+    const principalId = perm.trusteeIdentityId || perm.trusteeGroupId
+    if (principalId && nodeSet.has(perm.gpoId)) {
+      if (perm.permissionType === 'edit_settings' || perm.permissionType === 'modify_security' || perm.permissionType === 'full_control') {
+        links.push({
+          source: principalId,
+          target: perm.gpoId,
+          type: 'gpo_edit',
+          label: `can ${perm.permissionType.replace(/_/g, ' ')}`,
+          properties: {
+            permissionType: perm.permissionType,
+            dangerous: perm.dangerous,
+            trusteeName: perm.trusteeName,
+          },
+        })
+      }
     }
   }
 

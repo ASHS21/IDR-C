@@ -8,7 +8,7 @@ import {
   LayoutDashboard, Users, Bot, UsersRound, Shield, Key, ClipboardCheck,
   AlertTriangle, Brain, TrendingUp, Plug, ScrollText, Settings,
   ChevronLeft, ChevronRight, Menu, X, Network,
-  Route, Crosshair, UserX, MessageSquare, Link2, Radar,
+  Route, Crosshair, UserX, MessageSquare, Link2, Radar, TableProperties, ShieldCheck,
 } from 'lucide-react'
 
 const NAV_SECTIONS = [
@@ -23,6 +23,7 @@ const NAV_SECTIONS = [
       { href: '/dashboard/attack-paths', labelKey: 'attackPaths' as const, icon: Route },
       { href: '/dashboard/blast-radius', labelKey: 'blastRadius' as const, icon: Radar },
       { href: '/dashboard/peer-analysis', labelKey: 'peerAnomalies' as const, icon: TrendingUp },
+      { href: '/dashboard/gpo', labelKey: 'gpoTracking' as const, icon: ShieldCheck },
     ],
   },
   {
@@ -44,6 +45,7 @@ const NAV_SECTIONS = [
   {
     labelKey: 'intelligence' as const,
     items: [
+      { href: '/dashboard/results', labelKey: 'resultsHub' as const, icon: TableProperties },
       { href: '/dashboard/ai', labelKey: 'ai' as const, icon: Brain },
       { href: '/dashboard/ai-chat', labelKey: 'aiChat' as const, icon: MessageSquare },
       { href: '/dashboard/graph', labelKey: 'graph' as const, icon: Network },

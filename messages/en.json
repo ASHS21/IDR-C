@@ -19,7 +19,9 @@
     "peerAnomalies": "Peer Anomalies",
     "liveThreats": "Live Threats",
     "canaryIdentities": "Canary Identities",
-    "supplyChain": "Supply Chain"
+    "supplyChain": "Supply Chain",
+    "resultsHub": "Results Hub",
+    "gpoTracking": "GPO Tracking"
   },
   "navSections": {
     "overview": "OVERVIEW",
@@ -629,5 +631,82 @@
     "results": "results",
     "suggestedActions": "Suggested actions:",
     "followUp": "Follow-up questions:"
+  },
+  "results": {
+    "title": "Security Results Hub",
+    "description": "Unified view of all security findings",
+    "allFindings": "All Findings",
+    "violations": "Violations",
+    "attackPaths": "Attack Paths",
+    "threats": "Threats",
+    "shadowAdmins": "Shadow Admins",
+    "peerAnomalies": "Peer Anomalies",
+    "gpoRisks": "GPO Risks",
+    "canaryTriggers": "Canary Triggers",
+    "exportAll": "Export All CSV",
+    "exportFiltered": "Export Filtered",
+    "totalFindings": "Total Findings",
+    "unresolved": "Unresolved",
+    "finding": "Finding",
+    "type": "Type",
+    "detected": "Detected",
+    "resolved": "Resolved",
+    "category": "Category",
+    "sourceIp": "Source IP",
+    "confidence": "Confidence",
+    "pathLength": "Path Length",
+    "technique": "Technique",
+    "deviation": "Deviation",
+    "peerMedian": "Peer Median",
+    "equivalentTo": "Equivalent To",
+    "canaryName": "Canary Name",
+    "canaryType": "Canary Type",
+    "triggerTime": "Trigger Time",
+    "autoRefresh": "Auto Refresh",
+    "bulkActions": "Bulk Actions",
+    "acknowledge": "Acknowledge",
+    "resolve": "Resolve",
+    "investigate": "Investigate",
+    "selected": "selected"
+  },
+  "gpo": {
+    "title": "Group Policy Objects",
+    "description": "Track and analyze GPO configurations and permissions",
+    "allGpos": "All GPOs",
+    "riskyGpos": "Risky GPOs",
+    "linksMap": "GPO Links Map",
+    "permissions": "Permissions",
+    "scan": "Scan GPOs",
+    "stats": {
+      "total": "Total GPOs",
+      "tier0": "Tier 0 GPOs",
+      "tier1": "Tier 1 GPOs",
+      "tier2": "Tier 2 GPOs",
+      "risky": "Risky GPOs",
+      "enforced": "Enforced",
+      "unlinked": "Unlinked",
+      "noOwner": "No Owner"
+    },
+    "fields": {
+      "name": "GPO Name",
+      "guid": "GPO GUID",
+      "tier": "Tier",
+      "status": "Status",
+      "links": "Links",
+      "owner": "Owner",
+      "version": "Version",
+      "linkedOu": "Linked OU",
+      "linkOrder": "Link Order",
+      "enforced": "Enforced",
+      "permission": "Permission",
+      "dangerous": "Dangerous",
+      "tierGap": "Tier Gap"
+    },
+    "risks": {
+      "t2EditT0": "T2 identity can edit GPO linked to T0 OU",
+      "noOwner": "GPO has no assigned owner",
+      "unlinked": "GPO is not linked to any OU",
+      "weakPerms": "Non-admin can modify GPO security"
+    }
   }
 }

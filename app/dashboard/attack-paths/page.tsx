@@ -5,15 +5,18 @@ import Link from 'next/link'
 import { useTranslations } from 'next-intl'
 import {
   Route, AlertTriangle, Shield, Zap, ArrowRight, RefreshCw, Search,
+  LayoutGrid, TableIcon,
 } from 'lucide-react'
+import { AttackPathGraph } from '@/components/dashboard/attack-path-graph'
+import type { AttackPathData } from '@/components/dashboard/attack-path-graph'
 
 interface AttackPath {
   id: string
   sourceIdentityId: string
   targetIdentityId: string | null
   targetResourceId: string | null
-  pathNodes: Array<{ id: string; type: string; name: string; tier?: string }>
-  pathEdges: Array<{ source: string; target: string; type: string; label: string; technique: string }>
+  pathNodes: Array<{ id: string; type: string; name: string; tier?: string; riskScore?: number; subType?: string }>
+  pathEdges: Array<{ source: string; target: string; type: string; label: string; technique: string; mitreId?: string; exploitability?: string; confirmed?: boolean }>
   pathLength: number
   riskScore: number
   attackTechnique: string
@@ -33,6 +36,8 @@ interface Stats {
   maxRiskScore: number
   identitiesWithT0Paths: number
 }
+
+type ViewMode = 'table' | 'graph'
 
 function riskBadgeColor(score: number): string {
   if (score >= 80) return 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
@@ -60,6 +65,9 @@ export default function AttackPathsPage() {
   const [error, setError] = useState<string | null>(null)
   const [filterTechnique, setFilterTechnique] = useState('')
   const [filterMinRisk, setFilterMinRisk] = useState(0)
+  const [viewMode, setViewMode] = useState<ViewMode>('table')
+  const [highlightPathId, setHighlightPathId] = useState<string | undefined>(undefined)
+  const [selectedPathFilter, setSelectedPathFilter] = useState<string>('all')
 
   const fetchData = useCallback(async () => {
     try {
@@ -104,6 +112,32 @@ export default function AttackPathsPage() {
     }
   }
 
+  // Convert paths to graph data format
+  const graphPaths: AttackPathData[] = paths
+    .filter(p => selectedPathFilter === 'all' || p.id === selectedPathFilter)
+    .map(p => ({
+      id: p.id,
+      pathNodes: (p.pathNodes as any[]).map(n => ({
+        id: n.id,
+        name: n.name,
+        type: n.type,
+        tier: n.tier,
+        riskScore: n.riskScore,
+        subType: n.subType,
+      })),
+      pathEdges: (p.pathEdges as any[]).map(e => ({
+        source: e.source,
+        target: e.target,
+        technique: e.technique,
+        label: e.label,
+        mitreId: e.mitreId,
+        type: e.type,
+        exploitability: e.exploitability,
+        confirmed: e.confirmed,
+      })),
+      riskScore: p.riskScore,
+    }))
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -112,14 +146,42 @@ export default function AttackPathsPage() {
           <h1 className="text-h2 font-bold text-[var(--text-primary)]">{t('title')}</h1>
           <p className="text-body text-[var(--text-tertiary)] mt-1">{t('description')}</p>
         </div>
-        <button
-          onClick={triggerScan}
-          disabled={scanning}
-          className="flex items-center gap-2 px-4 py-2 bg-[var(--color-info)] text-white rounded-[var(--radius-badge)] hover:opacity-90 transition-opacity disabled:opacity-50"
-        >
-          <RefreshCw size={16} className={scanning ? 'animate-spin' : ''} />
-          {scanning ? t('scanning') : t('runScan')}
-        </button>
+        <div className="flex items-center gap-3">
+          {/* View Mode Toggle */}
+          <div className="flex items-center rounded-[var(--radius-badge)] border border-[var(--border-default)] overflow-hidden">
+            <button
+              onClick={() => setViewMode('table')}
+              className={`flex items-center gap-1.5 px-3 py-2 text-micro font-medium transition-colors ${
+                viewMode === 'table'
+                  ? 'bg-[var(--color-info)] text-white'
+                  : 'bg-[var(--bg-primary)] text-[var(--text-secondary)] hover:bg-[var(--bg-secondary)]'
+              }`}
+            >
+              <TableIcon size={14} />
+              Table
+            </button>
+            <button
+              onClick={() => setViewMode('graph')}
+              className={`flex items-center gap-1.5 px-3 py-2 text-micro font-medium transition-colors ${
+                viewMode === 'graph'
+                  ? 'bg-[var(--color-info)] text-white'
+                  : 'bg-[var(--bg-primary)] text-[var(--text-secondary)] hover:bg-[var(--bg-secondary)]'
+              }`}
+            >
+              <LayoutGrid size={14} />
+              Graph
+            </button>
+          </div>
+
+          <button
+            onClick={triggerScan}
+            disabled={scanning}
+            className="flex items-center gap-2 px-4 py-2 bg-[var(--color-info)] text-white rounded-[var(--radius-badge)] hover:opacity-90 transition-opacity disabled:opacity-50"
+          >
+            <RefreshCw size={16} className={scanning ? 'animate-spin' : ''} />
+            {scanning ? t('scanning') : t('runScan')}
+          </button>
+        </div>
       </div>
 
       {/* Stats Row */}
@@ -134,7 +196,7 @@ export default function AttackPathsPage() {
       )}
 
       {/* Filters */}
-      <div className="flex gap-3 items-center">
+      <div className="flex gap-3 items-center flex-wrap">
         <div className="relative flex-1 max-w-xs">
           <Search size={16} className="absolute start-3 top-1/2 -translate-y-1/2 text-[var(--text-tertiary)]" />
           <input
@@ -155,6 +217,29 @@ export default function AttackPathsPage() {
           <option value={60}>{t('highAndAbove')}</option>
           <option value={40}>{t('mediumAndAbove')}</option>
         </select>
+
+        {/* Path selector for graph view */}
+        {viewMode === 'graph' && paths.length > 0 && (
+          <select
+            value={selectedPathFilter}
+            onChange={e => {
+              setSelectedPathFilter(e.target.value)
+              setHighlightPathId(e.target.value === 'all' ? undefined : e.target.value)
+            }}
+            className="px-3 py-2 rounded-[var(--radius-badge)] border border-[var(--border-default)] bg-[var(--bg-primary)] text-body max-w-xs"
+          >
+            <option value="all">All Paths ({paths.length})</option>
+            {paths.slice(0, 30).map(p => {
+              const source = (p.pathNodes as any[])?.[0]?.name || 'Unknown'
+              const target = (p.pathNodes as any[])?.[(p.pathNodes as any[]).length - 1]?.name || 'Unknown'
+              return (
+                <option key={p.id} value={p.id}>
+                  {source} → {target} (Risk: {p.riskScore})
+                </option>
+              )
+            })}
+          </select>
+        )}
       </div>
 
       {/* Error */}
@@ -164,7 +249,7 @@ export default function AttackPathsPage() {
         </div>
       )}
 
-      {/* Table */}
+      {/* Content */}
       {loading ? (
         <div className="flex justify-center py-16 text-[var(--text-tertiary)]">{tCommon('loading')}</div>
       ) : paths.length === 0 ? (
@@ -173,7 +258,76 @@ export default function AttackPathsPage() {
           <p className="text-body font-medium">{t('noPaths')}</p>
           <p className="text-caption mt-1">{t('noPathsDescription')}</p>
         </div>
+      ) : viewMode === 'graph' ? (
+        /* ── Graph View ── */
+        <div className="space-y-4">
+          <AttackPathGraph
+            paths={graphPaths}
+            highlightPathId={highlightPathId}
+            onNodeClick={(node) => {
+              // If there's a connected identity, could navigate there
+            }}
+            onEdgeClick={(edge) => {
+              // Could show a detail panel for the technique
+            }}
+          />
+
+          {/* Clickable path list below graph */}
+          <div className="rounded-[var(--radius-card)] border border-[var(--border-default)] bg-[var(--bg-primary)]">
+            <div className="px-4 py-3 border-b border-[var(--border-default)]">
+              <p className="text-micro font-semibold text-[var(--text-tertiary)] uppercase tracking-wide">
+                Click a path to highlight in graph
+              </p>
+            </div>
+            <div className="max-h-64 overflow-y-auto divide-y divide-[var(--border-default)]">
+              {paths.slice(0, 30).map(path => {
+                const sourceNode = (path.pathNodes as any[])?.[0]
+                const targetNode = (path.pathNodes as any[])?.[(path.pathNodes as any[]).length - 1]
+                const isHighlighted = highlightPathId === path.id
+                return (
+                  <button
+                    key={path.id}
+                    onClick={() => {
+                      if (highlightPathId === path.id) {
+                        setHighlightPathId(undefined)
+                        setSelectedPathFilter('all')
+                      } else {
+                        setHighlightPathId(path.id)
+                        setSelectedPathFilter(path.id)
+                      }
+                    }}
+                    className={`w-full flex items-center gap-3 px-4 py-2 text-start transition-colors ${
+                      isHighlighted ? 'bg-[var(--color-info)]/10' : 'hover:bg-[var(--bg-secondary)]'
+                    }`}
+                  >
+                    <span className={`inline-block px-2 py-0.5 rounded-full text-micro font-semibold ${riskBadgeColor(path.riskScore)}`}>
+                      {path.riskScore}
+                    </span>
+                    <span className="text-body text-[var(--text-primary)] font-medium truncate">
+                      {sourceNode?.name || 'Unknown'}
+                    </span>
+                    <ArrowRight size={12} className="text-[var(--text-tertiary)] flex-shrink-0" />
+                    <span className="text-body text-[var(--text-primary)] truncate">
+                      {targetNode?.name || 'Unknown'}
+                    </span>
+                    <span className="text-micro text-[var(--text-tertiary)] ms-auto flex-shrink-0">
+                      {path.pathLength} hops | {path.attackTechnique}
+                    </span>
+                    <Link
+                      href={`/dashboard/attack-paths/${path.id}`}
+                      className="text-micro text-[var(--color-info)] hover:underline flex-shrink-0"
+                      onClick={e => e.stopPropagation()}
+                    >
+                      Details
+                    </Link>
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+        </div>
       ) : (
+        /* ── Table View ── */
         <div className="rounded-[var(--radius-card)] border border-[var(--border-default)] overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full">

@@ -3,7 +3,9 @@
 import { useState, useCallback } from 'react'
 import { useTranslations } from 'next-intl'
 import { MetricCard } from '@/components/dashboard/metric-card'
-import { BlastRadiusViz } from '@/components/dashboard/blast-radius-viz'
+import { BlastRadiusGraph } from '@/components/dashboard/blast-radius-graph'
+import type { BlastRadiusGraphProps } from '@/components/dashboard/blast-radius-graph'
+import { Search, GitCompare, X } from 'lucide-react'
 
 interface BlastNode {
   id: string
@@ -27,43 +29,127 @@ interface BlastResult {
   }
 }
 
+interface SearchResult {
+  id: string
+  displayName: string
+  type: string
+  adTier: string
+}
+
+function computeBlastRadiusScore(stats: BlastResult['stats']): number {
+  // Composite score: heavily weighted by T0 reachable and critical assets
+  const base = Math.min(stats.totalReachable * 2, 40)
+  const t0Weight = Math.min(stats.tierBreaches * 15, 40)
+  const critWeight = Math.min(stats.criticalAssets * 5, 20)
+  return Math.min(100, base + t0Weight + critWeight)
+}
+
+function computeHighestTier(rings: BlastResult['rings']): string {
+  for (const ring of rings) {
+    for (const node of ring.nodes) {
+      if (node.tier === 'tier_0') return 'tier_0'
+    }
+  }
+  for (const ring of rings) {
+    for (const node of ring.nodes) {
+      if (node.tier === 'tier_1') return 'tier_1'
+    }
+  }
+  return 'tier_2'
+}
+
+function transformToGraphData(data: BlastResult): BlastRadiusGraphProps['data'] {
+  const blastScore = computeBlastRadiusScore(data.stats)
+  const highestTier = computeHighestTier(data.rings)
+
+  return {
+    center: {
+      id: data.center.id,
+      name: data.center.name,
+      type: data.center.type,
+      tier: data.center.tier,
+      riskScore: data.center.riskScore,
+      subType: data.center.subType,
+    },
+    rings: data.rings.map((ring, idx) => ({
+      level: ring.depth,
+      label: ring.depth === 1 ? 'Direct' : ring.depth === 2 ? 'Indirect' : 'Transitive',
+      nodes: ring.nodes.map(n => ({
+        id: n.id,
+        name: n.name,
+        type: n.type,
+        tier: n.tier,
+        subType: n.subType,
+        accessType: n.type,
+        criticality: n.criticality,
+      })),
+      edges: [],
+    })),
+    stats: {
+      totalReachable: data.stats.totalReachable,
+      t0Reachable: data.stats.tierBreaches,
+      blastRadiusScore: blastScore,
+      highestTier,
+    },
+  }
+}
+
 export default function BlastRadiusPage() {
   const t = useTranslations('blastRadius')
   const tCommon = useTranslations('common')
 
+  // Primary identity
   const [searchQuery, setSearchQuery] = useState('')
-  const [searchResults, setSearchResults] = useState<{ id: string; displayName: string; type: string; adTier: string }[]>([])
+  const [searchResults, setSearchResults] = useState<SearchResult[]>([])
   const [selectedIdentity, setSelectedIdentity] = useState<string | null>(null)
   const [blastData, setBlastData] = useState<BlastResult | null>(null)
   const [narration, setNarration] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [searching, setSearching] = useState(false)
-  const [topImpactful, setTopImpactful] = useState<{ id: string; name: string; totalReachable: number; tier: string }[]>([])
-  const [topLoading, setTopLoading] = useState(false)
 
-  const searchIdentities = useCallback(async (query: string) => {
+  // Compare mode
+  const [compareMode, setCompareMode] = useState(false)
+  const [compareSearchQuery, setCompareSearchQuery] = useState('')
+  const [compareSearchResults, setCompareSearchResults] = useState<SearchResult[]>([])
+  const [compareIdentity, setCompareIdentity] = useState<string | null>(null)
+  const [compareBlastData, setCompareBlastData] = useState<BlastResult | null>(null)
+  const [compareLoading, setCompareLoading] = useState(false)
+  const [compareSearching, setCompareSearching] = useState(false)
+
+  const searchIdentities = useCallback(async (query: string, isCompare: boolean) => {
     if (query.length < 2) {
-      setSearchResults([])
+      if (isCompare) setCompareSearchResults([])
+      else setSearchResults([])
       return
     }
-    setSearching(true)
+    if (isCompare) setCompareSearching(true)
+    else setSearching(true)
+
     try {
       const res = await fetch(`/api/identities?search=${encodeURIComponent(query)}&pageSize=10`)
       if (res.ok) {
         const data = await res.json()
-        setSearchResults(data.data || [])
+        if (isCompare) setCompareSearchResults(data.data || [])
+        else setSearchResults(data.data || [])
       }
     } catch {
       // ignore
     } finally {
-      setSearching(false)
+      if (isCompare) setCompareSearching(false)
+      else setSearching(false)
     }
   }, [])
 
-  const analyzeBlastRadius = useCallback(async (identityId: string) => {
-    setSelectedIdentity(identityId)
-    setLoading(true)
-    setNarration(null)
+  const analyzeBlastRadius = useCallback(async (identityId: string, isCompare: boolean) => {
+    if (isCompare) {
+      setCompareIdentity(identityId)
+      setCompareLoading(true)
+    } else {
+      setSelectedIdentity(identityId)
+      setLoading(true)
+      setNarration(null)
+    }
+
     try {
       const res = await fetch('/api/blast-radius', {
         method: 'POST',
@@ -72,83 +158,138 @@ export default function BlastRadiusPage() {
       })
       if (res.ok) {
         const data = await res.json()
-        setBlastData(data)
+        if (isCompare) {
+          setCompareBlastData(data)
+        } else {
+          setBlastData(data)
 
-        // Get AI narration
-        try {
-          const narRes = await fetch('/api/blast-radius/narrate', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(data),
-          })
-          if (narRes.ok) {
-            const narData = await narRes.json()
-            setNarration(narData.narrative || null)
+          // Get AI narration (primary only)
+          try {
+            const narRes = await fetch('/api/blast-radius/narrate', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(data),
+            })
+            if (narRes.ok) {
+              const narData = await narRes.json()
+              setNarration(narData.narrative || null)
+            }
+          } catch {
+            // narration optional
           }
-        } catch {
-          // narration optional
         }
       }
     } catch {
       // error handled
     } finally {
-      setLoading(false)
-      setSearchResults([])
-      setSearchQuery('')
+      if (isCompare) {
+        setCompareLoading(false)
+        setCompareSearchResults([])
+        setCompareSearchQuery('')
+      } else {
+        setLoading(false)
+        setSearchResults([])
+        setSearchQuery('')
+      }
     }
   }, [])
 
+  const primaryGraphData = blastData ? transformToGraphData(blastData) : null
+  const compareGraphData = compareBlastData ? transformToGraphData(compareBlastData) : null
+
   return (
     <div className="space-y-6">
-      <h2 className="text-2xl font-bold text-[var(--text-primary)]">{t('title')}</h2>
-
-      {/* Search */}
-      <div className="bg-[var(--bg-primary)] rounded-xl border border-[var(--border-default)] p-6" style={{ boxShadow: 'var(--shadow-card)' }}>
-        <label className="text-sm font-medium text-[var(--text-secondary)] mb-2 block">{t('selectIdentity')}</label>
-        <div className="relative">
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(e) => {
-              setSearchQuery(e.target.value)
-              searchIdentities(e.target.value)
-            }}
-            placeholder={t('searchPlaceholder')}
-            className="w-full px-4 py-2 border border-[var(--border-default)] rounded-lg text-sm bg-[var(--bg-primary)] text-[var(--text-primary)]"
-          />
-          {searchResults.length > 0 && (
-            <div className="absolute top-full left-0 right-0 mt-1 bg-[var(--bg-primary)] border border-[var(--border-default)] rounded-lg shadow-lg z-10 max-h-60 overflow-y-auto">
-              {searchResults.map((identity) => (
-                <button
-                  key={identity.id}
-                  onClick={() => analyzeBlastRadius(identity.id)}
-                  className="w-full text-start px-4 py-2 hover:bg-[var(--bg-secondary)] text-sm flex items-center justify-between"
-                >
-                  <span className="text-[var(--text-primary)]">{identity.displayName}</span>
-                  <span className="text-xs text-[var(--text-secondary)] capitalize">{identity.type} / {identity.adTier?.replace('_', ' ')}</span>
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <h2 className="text-2xl font-bold text-[var(--text-primary)]">{t('title')}</h2>
+        <button
+          onClick={() => {
+            setCompareMode(!compareMode)
+            if (compareMode) {
+              setCompareBlastData(null)
+              setCompareIdentity(null)
+            }
+          }}
+          className={`flex items-center gap-2 px-4 py-2 rounded-[var(--radius-badge)] border transition-colors text-body font-medium ${
+            compareMode
+              ? 'bg-[var(--color-info)] text-white border-[var(--color-info)]'
+              : 'bg-[var(--bg-primary)] text-[var(--text-secondary)] border-[var(--border-default)] hover:bg-[var(--bg-secondary)]'
+          }`}
+        >
+          <GitCompare size={16} />
+          {compareMode ? 'Exit Compare' : 'Compare Mode'}
+        </button>
       </div>
 
-      {loading && (
+      {/* Search Section */}
+      <div className={`grid gap-4 ${compareMode ? 'grid-cols-1 md:grid-cols-2' : 'grid-cols-1'}`}>
+        {/* Primary Search */}
+        <div className="bg-[var(--bg-primary)] rounded-xl border border-[var(--border-default)] p-6" style={{ boxShadow: 'var(--shadow-card)' }}>
+          <label className="text-sm font-medium text-[var(--text-secondary)] mb-2 block">
+            {compareMode ? 'Identity A' : t('selectIdentity')}
+          </label>
+          <IdentitySearchInput
+            query={searchQuery}
+            results={searchResults}
+            searching={searching}
+            onChange={(q) => { setSearchQuery(q); searchIdentities(q, false) }}
+            onSelect={(id) => analyzeBlastRadius(id, false)}
+            placeholder={t('searchPlaceholder')}
+          />
+        </div>
+
+        {/* Compare Search */}
+        {compareMode && (
+          <div className="bg-[var(--bg-primary)] rounded-xl border border-[var(--border-default)] p-6" style={{ boxShadow: 'var(--shadow-card)' }}>
+            <label className="text-sm font-medium text-[var(--text-secondary)] mb-2 block">Identity B</label>
+            <IdentitySearchInput
+              query={compareSearchQuery}
+              results={compareSearchResults}
+              searching={compareSearching}
+              onChange={(q) => { setCompareSearchQuery(q); searchIdentities(q, true) }}
+              onSelect={(id) => analyzeBlastRadius(id, true)}
+              placeholder="Search for second identity..."
+            />
+          </div>
+        )}
+      </div>
+
+      {/* Loading */}
+      {(loading || compareLoading) && (
         <div className="bg-[var(--bg-primary)] rounded-xl border border-[var(--border-default)] p-12 text-center">
           <div className="animate-spin h-8 w-8 border-4 border-[var(--color-info)] border-t-transparent rounded-full mx-auto mb-4" />
           <p className="text-[var(--text-secondary)]">{t('computing')}</p>
         </div>
       )}
 
-      {blastData && !loading && (
+      {/* Results */}
+      {primaryGraphData && !loading && (
         <>
-          {/* Stats */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <MetricCard label={t('totalReachable')} value={blastData.stats.totalReachable} color="blue" />
-            <MetricCard label={t('t0Assets')} value={blastData.stats.tierBreaches} color="red" />
-            <MetricCard label={t('criticalAssets')} value={blastData.stats.criticalAssets} color="orange" />
-            <MetricCard label={t('identitiesReachable')} value={blastData.stats.identityCount} color="green" />
+          {/* Stats row */}
+          <div className={`grid gap-4 ${compareMode && compareGraphData ? 'grid-cols-2 md:grid-cols-4' : 'grid-cols-1 md:grid-cols-4'}`}>
+            <MetricCard label={t('totalReachable')} value={primaryGraphData.stats.totalReachable} color="blue" />
+            <MetricCard label="T0 Reachable" value={primaryGraphData.stats.t0Reachable} color="red" />
+            <MetricCard label="Blast Score" value={primaryGraphData.stats.blastRadiusScore} color="orange" />
+            <MetricCard
+              label="Highest Tier"
+              value={primaryGraphData.stats.highestTier?.replace('_', ' ').toUpperCase() || 'N/A'}
+              color={primaryGraphData.stats.highestTier === 'tier_0' ? 'red' : 'blue'}
+            />
           </div>
+
+          {/* Compare stats */}
+          {compareMode && compareGraphData && (
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <MetricCard label={`B: ${t('totalReachable')}`} value={compareGraphData.stats.totalReachable} color="blue" />
+              <MetricCard label="B: T0 Reachable" value={compareGraphData.stats.t0Reachable} color="red" />
+              <MetricCard label="B: Blast Score" value={compareGraphData.stats.blastRadiusScore} color="orange" />
+              <MetricCard
+                label="B: Highest Tier"
+                value={compareGraphData.stats.highestTier?.replace('_', ' ').toUpperCase() || 'N/A'}
+                color={compareGraphData.stats.highestTier === 'tier_0' ? 'red' : 'blue'}
+              />
+            </div>
+          )}
 
           {/* Narration */}
           {narration && (
@@ -158,14 +299,26 @@ export default function BlastRadiusPage() {
             </div>
           )}
 
-          {/* Visualization */}
-          <div className="bg-[var(--bg-primary)] rounded-xl border border-[var(--border-default)] p-6" style={{ boxShadow: 'var(--shadow-card)' }}>
-            <h3 className="text-sm font-medium text-[var(--text-secondary)] mb-4">{t('blastRadiusMap')}</h3>
-            <BlastRadiusViz center={blastData.center} rings={blastData.rings} />
+          {/* Graph(s) */}
+          <div className={`grid gap-6 ${compareMode && compareGraphData ? 'grid-cols-1 lg:grid-cols-2' : 'grid-cols-1'}`}>
+            {/* Primary Graph */}
+            <div className="bg-[var(--bg-primary)] rounded-xl border border-[var(--border-default)] p-4" style={{ boxShadow: 'var(--shadow-card)' }}>
+              {compareMode && <h3 className="text-sm font-medium text-[var(--text-secondary)] mb-3">Identity A: {primaryGraphData.center.name}</h3>}
+              {!compareMode && <h3 className="text-sm font-medium text-[var(--text-secondary)] mb-3">{t('blastRadiusMap')}</h3>}
+              <BlastRadiusGraph data={primaryGraphData} />
+            </div>
+
+            {/* Compare Graph */}
+            {compareMode && compareGraphData && (
+              <div className="bg-[var(--bg-primary)] rounded-xl border border-[var(--border-default)] p-4" style={{ boxShadow: 'var(--shadow-card)' }}>
+                <h3 className="text-sm font-medium text-[var(--text-secondary)] mb-3">Identity B: {compareGraphData.center.name}</h3>
+                <BlastRadiusGraph data={compareGraphData} />
+              </div>
+            )}
           </div>
 
           {/* Ring details */}
-          {blastData.rings.map((ring) => (
+          {blastData && blastData.rings.map((ring) => (
             <div key={ring.depth} className="bg-[var(--bg-primary)] rounded-xl border border-[var(--border-default)] p-6" style={{ boxShadow: 'var(--shadow-card)' }}>
               <h3 className="text-sm font-medium text-[var(--text-secondary)] mb-3">
                 {t('ringDepth', { depth: ring.depth })} ({ring.nodes.length} {t('nodes')})
@@ -222,6 +375,58 @@ export default function BlastRadiusPage() {
             </div>
           ))}
         </>
+      )}
+    </div>
+  )
+}
+
+// ── Reusable search input ──
+
+function IdentitySearchInput({
+  query,
+  results,
+  searching,
+  onChange,
+  onSelect,
+  placeholder,
+}: {
+  query: string
+  results: SearchResult[]
+  searching: boolean
+  onChange: (query: string) => void
+  onSelect: (id: string) => void
+  placeholder: string
+}) {
+  return (
+    <div className="relative">
+      <div className="relative">
+        <Search size={16} className="absolute start-3 top-1/2 -translate-y-1/2 text-[var(--text-tertiary)]" />
+        <input
+          type="text"
+          value={query}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder={placeholder}
+          className="w-full ps-9 pe-3 py-2 border border-[var(--border-default)] rounded-lg text-sm bg-[var(--bg-primary)] text-[var(--text-primary)]"
+        />
+        {searching && (
+          <div className="absolute end-3 top-1/2 -translate-y-1/2">
+            <div className="w-4 h-4 border-2 border-[var(--color-info)] border-t-transparent rounded-full animate-spin" />
+          </div>
+        )}
+      </div>
+      {results.length > 0 && (
+        <div className="absolute top-full left-0 right-0 mt-1 bg-[var(--bg-primary)] border border-[var(--border-default)] rounded-lg shadow-lg z-10 max-h-60 overflow-y-auto">
+          {results.map((identity) => (
+            <button
+              key={identity.id}
+              onClick={() => onSelect(identity.id)}
+              className="w-full text-start px-4 py-2 hover:bg-[var(--bg-secondary)] text-sm flex items-center justify-between"
+            >
+              <span className="text-[var(--text-primary)]">{identity.displayName}</span>
+              <span className="text-xs text-[var(--text-secondary)] capitalize">{identity.type} / {identity.adTier?.replace('_', ' ')}</span>
+            </button>
+          ))}
+        </div>
       )}
     </div>
   )

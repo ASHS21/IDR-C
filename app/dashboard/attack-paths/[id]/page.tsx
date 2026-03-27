@@ -3,16 +3,17 @@
 import { useEffect, useState, use } from 'react'
 import Link from 'next/link'
 import { useTranslations } from 'next-intl'
-import { ArrowLeft, Brain, Shield, Route, Zap, RefreshCw } from 'lucide-react'
-import { AttackPathChain } from '@/components/dashboard/attack-path-chain'
+import { ArrowLeft, Brain, Shield, Route, Zap, RefreshCw, ExternalLink } from 'lucide-react'
+import { AttackPathGraph } from '@/components/dashboard/attack-path-graph'
+import type { AttackPathData } from '@/components/dashboard/attack-path-graph'
 
 interface AttackPathDetail {
   id: string
   sourceIdentityId: string
   targetIdentityId: string | null
   targetResourceId: string | null
-  pathNodes: Array<{ id: string; type: string; name: string; tier?: string }>
-  pathEdges: Array<{ source: string; target: string; type: string; label: string; technique: string }>
+  pathNodes: Array<{ id: string; type: string; name: string; tier?: string; riskScore?: number; subType?: string }>
+  pathEdges: Array<{ source: string; target: string; type: string; label: string; technique: string; mitreId?: string; exploitability?: string; confirmed?: boolean }>
   pathLength: number
   riskScore: number
   attackTechnique: string
@@ -34,6 +35,21 @@ function tierBadge(tier: string): string {
   }
 }
 
+// Map technique names to MITRE ATT&CK URLs and common tools
+const TECHNIQUE_INFO: Record<string, { tools: string[]; description: string }> = {
+  GenericAll: { tools: ['BloodHound', 'PowerView', 'Rubeus'], description: 'Full control over the target object, allowing modification of all properties.' },
+  WriteDACL: { tools: ['PowerView', 'DAMP', 'SharpGPOAbuse'], description: 'Modify the DACL to grant additional permissions.' },
+  WriteOwner: { tools: ['PowerView', 'Set-DomainObjectOwner'], description: 'Change the owner of the object, then modify its DACL.' },
+  DCSync: { tools: ['Mimikatz', 'Impacket secretsdump'], description: 'Replicate directory changes to extract password hashes.' },
+  ForceChangePassword: { tools: ['PowerView Set-DomainUserPassword', 'net user'], description: 'Reset the target user password without knowing the current one.' },
+  AddMember: { tools: ['PowerView Add-DomainGroupMember', 'net group'], description: 'Add an identity to a security group.' },
+  GroupMembership: { tools: ['BloodHound', 'PowerView Get-DomainGroupMember'], description: 'Membership in a security group grants inherited permissions.' },
+  Entitlement: { tools: ['SailPoint', 'Azure Portal'], description: 'Direct permission assignment or role-based access.' },
+  OwnerOf: { tools: ['Azure Portal', 'PowerShell'], description: 'Ownership of NHI grants control over its credentials and permissions.' },
+  Delegation: { tools: ['Rubeus', 'Impacket getST'], description: 'Kerberos delegation abuse to impersonate users.' },
+  ACLAbuse: { tools: ['BloodHound', 'PowerView', 'Certify'], description: 'Exploit misconfigured ACLs on AD objects.' },
+}
+
 export default function AttackPathDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params)
   const t = useTranslations('attackPaths')
@@ -42,6 +58,7 @@ export default function AttackPathDetailPage({ params }: { params: Promise<{ id:
   const [loading, setLoading] = useState(true)
   const [narrating, setNarrating] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [selectedStep, setSelectedStep] = useState<number | null>(null)
 
   useEffect(() => {
     async function fetchPath() {
@@ -89,6 +106,30 @@ export default function AttackPathDetailPage({ params }: { params: Promise<{ id:
 
   const sourceNode = (path.pathNodes as any[])?.[0]
   const targetNode = (path.pathNodes as any[])?.[(path.pathNodes as any[]).length - 1]
+
+  // Prepare graph data
+  const graphData: AttackPathData[] = [{
+    id: path.id,
+    pathNodes: (path.pathNodes as any[]).map(n => ({
+      id: n.id,
+      name: n.name,
+      type: n.type,
+      tier: n.tier,
+      riskScore: n.riskScore,
+      subType: n.subType,
+    })),
+    pathEdges: (path.pathEdges as any[]).map(e => ({
+      source: e.source,
+      target: e.target,
+      technique: e.technique,
+      label: e.label,
+      mitreId: e.mitreId,
+      type: e.type,
+      exploitability: e.exploitability,
+      confirmed: e.confirmed,
+    })),
+    riskScore: path.riskScore,
+  }]
 
   return (
     <div className="space-y-6">
@@ -152,7 +193,19 @@ export default function AttackPathDetailPage({ params }: { params: Promise<{ id:
             <Shield size={14} />
             MITRE ATT&CK
           </div>
-          <p className="text-body font-mono font-semibold text-[var(--text-primary)] mt-1">{path.mitreId || 'N/A'}</p>
+          <p className="text-body font-mono font-semibold text-[var(--text-primary)] mt-1">
+            {path.mitreId ? (
+              <a
+                href={`https://attack.mitre.org/techniques/${path.mitreId.replace('.', '/')}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-[var(--color-info)] hover:underline inline-flex items-center gap-1"
+              >
+                {path.mitreId}
+                <ExternalLink size={11} />
+              </a>
+            ) : 'N/A'}
+          </p>
         </div>
         <div className="p-3 rounded-[var(--radius-card)] border border-[var(--border-default)] bg-[var(--bg-primary)]">
           <div className="flex items-center gap-2 text-micro text-[var(--text-tertiary)]">
@@ -172,15 +225,120 @@ export default function AttackPathDetailPage({ params }: { params: Promise<{ id:
         </div>
       </div>
 
-      {/* Chain Visualization */}
-      <div>
-        <h2 className="text-h4 font-semibold text-[var(--text-primary)] mb-3">{t('pathVisualization')}</h2>
-        <AttackPathChain
-          pathNodes={path.pathNodes as any[]}
-          pathEdges={path.pathEdges as any[]}
-          width={Math.max(600, ((path.pathNodes as any[]).length) * 180)}
-          height={220}
-        />
+      {/* Graph + Walkthrough Side-by-Side */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Graph (2/3 width) */}
+        <div className="lg:col-span-2">
+          <h2 className="text-h4 font-semibold text-[var(--text-primary)] mb-3">{t('pathVisualization')}</h2>
+          <AttackPathGraph
+            paths={graphData}
+            height={380}
+          />
+        </div>
+
+        {/* Step-by-step walkthrough (1/3 width) */}
+        <div className="lg:col-span-1">
+          <h2 className="text-h4 font-semibold text-[var(--text-primary)] mb-3">Step-by-Step Walkthrough</h2>
+          <div className="rounded-[var(--radius-card)] border border-[var(--border-default)] bg-[var(--bg-primary)] divide-y divide-[var(--border-default)] max-h-[400px] overflow-y-auto">
+            {(path.pathEdges as any[]).map((edge: any, i: number) => {
+              const from = (path.pathNodes as any[])[i]
+              const to = (path.pathNodes as any[])[i + 1]
+              const info = TECHNIQUE_INFO[edge.technique]
+              const isExpanded = selectedStep === i
+              const mitreUrl = edge.mitreId
+                ? `https://attack.mitre.org/techniques/${edge.mitreId.replace('.', '/')}`
+                : path.mitreId
+                  ? `https://attack.mitre.org/techniques/${path.mitreId.replace('.', '/')}`
+                  : null
+
+              return (
+                <button
+                  key={i}
+                  onClick={() => setSelectedStep(isExpanded ? null : i)}
+                  className={`w-full text-start px-4 py-3 transition-colors ${isExpanded ? 'bg-[var(--bg-secondary)]' : 'hover:bg-[var(--bg-secondary)]'}`}
+                >
+                  {/* Step header */}
+                  <div className="flex items-center gap-3">
+                    <span className="flex-shrink-0 w-7 h-7 rounded-full bg-[var(--color-info)] text-white text-micro font-bold flex items-center justify-center">
+                      {i + 1}
+                    </span>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-body font-medium text-[var(--text-primary)] truncate">
+                        {from?.name} → {to?.name}
+                      </p>
+                      <p className="text-micro text-[var(--color-warning)] font-semibold">{edge.technique}</p>
+                    </div>
+                  </div>
+
+                  {/* Expanded detail */}
+                  {isExpanded && (
+                    <div className="mt-3 ms-10 space-y-2">
+                      <div>
+                        <p className="text-micro text-[var(--text-tertiary)] uppercase tracking-wide">Edge Label</p>
+                        <p className="text-caption text-[var(--text-secondary)]">{edge.label || edge.type}</p>
+                      </div>
+
+                      {mitreUrl && (
+                        <div>
+                          <p className="text-micro text-[var(--text-tertiary)] uppercase tracking-wide">MITRE ATT&CK</p>
+                          <a
+                            href={mitreUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-caption text-[var(--color-info)] hover:underline inline-flex items-center gap-1"
+                            onClick={e => e.stopPropagation()}
+                          >
+                            {edge.mitreId || path.mitreId}
+                            <ExternalLink size={10} />
+                          </a>
+                        </div>
+                      )}
+
+                      {info && (
+                        <>
+                          <div>
+                            <p className="text-micro text-[var(--text-tertiary)] uppercase tracking-wide">Description</p>
+                            <p className="text-caption text-[var(--text-secondary)]">{info.description}</p>
+                          </div>
+                          <div>
+                            <p className="text-micro text-[var(--text-tertiary)] uppercase tracking-wide">Attacker Tools</p>
+                            <div className="flex flex-wrap gap-1 mt-0.5">
+                              {info.tools.map(tool => (
+                                <span key={tool} className="text-micro px-1.5 py-0.5 rounded bg-[var(--bg-secondary)] text-[var(--text-secondary)] border border-[var(--border-default)]">
+                                  {tool}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        </>
+                      )}
+
+                      {/* From/To tier info */}
+                      <div className="flex gap-4">
+                        {from?.tier && (
+                          <div>
+                            <p className="text-micro text-[var(--text-tertiary)]">From Tier</p>
+                            <span className={`text-micro px-1.5 py-0.5 rounded font-semibold ${tierBadge(from.tier)}`}>
+                              {from.tier.replace('_', ' ').toUpperCase()}
+                            </span>
+                          </div>
+                        )}
+                        {to?.tier && (
+                          <div>
+                            <p className="text-micro text-[var(--text-tertiary)]">To Tier</p>
+                            <span className={`text-micro px-1.5 py-0.5 rounded font-semibold ${tierBadge(to.tier)}`}>
+                              {to.tier.replace('_', ' ').toUpperCase()}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </button>
+              )
+            })}
+          </div>
+        </div>
       </div>
 
       {/* AI Narrative */}
@@ -209,32 +367,6 @@ export default function AttackPathDetailPage({ params }: { params: Promise<{ id:
           ) : (
             <p className="text-body text-[var(--text-tertiary)] italic">{t('noNarrativeYet')}</p>
           )}
-        </div>
-      </div>
-
-      {/* Path Steps */}
-      <div className="rounded-[var(--radius-card)] border border-[var(--border-default)] bg-[var(--bg-primary)]">
-        <div className="px-5 py-3 border-b border-[var(--border-default)]">
-          <h2 className="text-body font-semibold text-[var(--text-primary)]">{t('pathSteps')}</h2>
-        </div>
-        <div className="divide-y divide-[var(--border-default)]">
-          {(path.pathEdges as any[]).map((edge: any, i: number) => {
-            const from = (path.pathNodes as any[])[i]
-            const to = (path.pathNodes as any[])[i + 1]
-            return (
-              <div key={i} className="px-5 py-3 flex items-center gap-4">
-                <span className="text-micro font-bold text-[var(--text-tertiary)] w-8">{t('hop')} {i + 1}</span>
-                <div className="flex-1 flex items-center gap-3">
-                  <span className="text-body font-medium text-[var(--text-primary)]">{from?.name}</span>
-                  <div className="flex items-center gap-2 px-3 py-1 bg-[var(--bg-secondary)] rounded-full">
-                    <span className="text-micro font-semibold text-[var(--color-warning)]">{edge.technique}</span>
-                    <span className="text-micro text-[var(--text-tertiary)]">{edge.label}</span>
-                  </div>
-                  <span className="text-body font-medium text-[var(--text-primary)]">{to?.name}</span>
-                </div>
-              </div>
-            )
-          })}
         </div>
       </div>
     </div>
