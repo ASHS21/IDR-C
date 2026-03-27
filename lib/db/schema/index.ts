@@ -16,3 +16,21 @@ export * from './remediation-plans'
 export * from './auth'
 export * from './subscriptions'
 export * from './notifications'
+
+// Phase N1: Attack Path Engine
+export * from './ad-delegations'
+export * from './acl-entries'
+export * from './attack-paths'
+
+// Phase N3: ITDR — Identity Threat Detection and Response
+export * from './identity-events'
+export * from './identity-threats'
+export * from './detection-rules'
+
+// Phase N2+N4: Shadow Admins, Canaries, Peer Groups
+export * from './shadow-admins'
+export * from './canary-identities'
+export * from './peer-groups'
+
+// Phase N5: AI Chat
+export * from './chat-sessions'

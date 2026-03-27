@@ -8,36 +8,45 @@ import {
   LayoutDashboard, Users, Bot, UsersRound, Shield, Key, ClipboardCheck,
   AlertTriangle, Brain, TrendingUp, Plug, ScrollText, Settings,
   ChevronLeft, ChevronRight, Menu, X, Network,
+  Route, Crosshair, UserX, MessageSquare, Link2, Radar,
 } from 'lucide-react'
 
 const NAV_SECTIONS = [
   {
-    labelKey: 'overview' as const,
+    labelKey: 'posture' as const,
     items: [
       { href: '/dashboard', labelKey: 'dashboard' as const, icon: LayoutDashboard },
+      { href: '/dashboard/identities', labelKey: 'identities' as const, icon: Users },
+      { href: '/dashboard/tiering', labelKey: 'tiering' as const, icon: Shield },
+      { href: '/dashboard/entitlements', labelKey: 'entitlements' as const, icon: Key },
+      { href: '/dashboard/shadow-admins', labelKey: 'shadowAdmins' as const, icon: UserX },
+      { href: '/dashboard/attack-paths', labelKey: 'attackPaths' as const, icon: Route },
+      { href: '/dashboard/blast-radius', labelKey: 'blastRadius' as const, icon: Radar },
+      { href: '/dashboard/peer-analysis', labelKey: 'peerAnomalies' as const, icon: TrendingUp },
     ],
   },
   {
-    labelKey: 'identity' as const,
+    labelKey: 'threats' as const,
     items: [
-      { href: '/dashboard/identities', labelKey: 'identities' as const, icon: Users },
-      { href: '/dashboard/nhi', labelKey: 'nhi' as const, icon: Bot },
-      { href: '/dashboard/graph', labelKey: 'graph' as const, icon: Network },
+      { href: '/dashboard/threats', labelKey: 'liveThreats' as const, icon: Crosshair },
+      { href: '/dashboard/canaries', labelKey: 'canaryIdentities' as const, icon: AlertTriangle },
+      { href: '/dashboard/violations', labelKey: 'violations' as const, icon: AlertTriangle },
     ],
   },
   {
     labelKey: 'governance' as const,
     items: [
-      { href: '/dashboard/tiering', labelKey: 'tiering' as const, icon: Shield },
-      { href: '/dashboard/entitlements', labelKey: 'entitlements' as const, icon: Key },
       { href: '/dashboard/certifications', labelKey: 'certifications' as const, icon: ClipboardCheck },
-      { href: '/dashboard/violations', labelKey: 'violations' as const, icon: AlertTriangle },
+      { href: '/dashboard/nhi', labelKey: 'nhi' as const, icon: Bot },
+      { href: '/dashboard/supply-chain', labelKey: 'supplyChain' as const, icon: Link2 },
     ],
   },
   {
     labelKey: 'intelligence' as const,
     items: [
       { href: '/dashboard/ai', labelKey: 'ai' as const, icon: Brain },
+      { href: '/dashboard/ai-chat', labelKey: 'aiChat' as const, icon: MessageSquare },
+      { href: '/dashboard/graph', labelKey: 'graph' as const, icon: Network },
     ],
   },
   {

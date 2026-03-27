@@ -11,7 +11,7 @@ import { IntegrationHealthStrip } from '@/components/dashboard/integration-healt
 import { CardSkeleton } from '@/components/ui/skeleton'
 import { getRiskLevel } from '@/lib/utils/constants'
 import Link from 'next/link'
-import { AlertTriangle, Shield, TrendingUp, Users } from 'lucide-react'
+import { AlertTriangle, Shield, TrendingUp, Users, Crosshair, Route, UserX } from 'lucide-react'
 import { ExportPdfButton } from '@/components/dashboard/export-pdf-button'
 
 export default function DashboardOverview() {
@@ -65,6 +65,39 @@ export default function DashboardOverview() {
         <MetricCard label={t('tierViolations')} value={data.tierViolations} severity={data.tierViolations > 0 ? 'high' : undefined} />
         <MetricCard label={t('criticalRisk')} value={data.riskDistribution?.critical ?? 0} severity={(data.riskDistribution?.critical ?? 0) > 0 ? 'critical' : undefined} />
       </div>
+
+      {/* Threat & Attack Surface Metrics */}
+      {(data.activeThreats > 0 || data.attackPathsCount > 0 || data.shadowAdminCount > 0) && (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <Link href="/dashboard/threats" className="rounded-[var(--radius-card)] border border-[var(--border-default)] bg-[var(--bg-primary)] p-4 flex items-center gap-4 hover:border-[var(--border-hover)] transition-colors" style={{ boxShadow: 'var(--shadow-card)' }}>
+            <div className="w-10 h-10 rounded-lg flex items-center justify-center" style={{ backgroundColor: data.activeThreats > 0 ? 'var(--color-critical-bg)' : 'var(--color-low-bg)' }}>
+              <Crosshair size={20} style={{ color: data.activeThreats > 0 ? 'var(--color-critical)' : 'var(--color-low)' }} />
+            </div>
+            <div>
+              <p className="text-heading font-semibold text-[var(--text-primary)]">{data.activeThreats}</p>
+              <p className="text-micro text-[var(--text-tertiary)]">Active Threats</p>
+            </div>
+          </Link>
+          <Link href="/dashboard/attack-paths" className="rounded-[var(--radius-card)] border border-[var(--border-default)] bg-[var(--bg-primary)] p-4 flex items-center gap-4 hover:border-[var(--border-hover)] transition-colors" style={{ boxShadow: 'var(--shadow-card)' }}>
+            <div className="w-10 h-10 rounded-lg flex items-center justify-center" style={{ backgroundColor: data.attackPathsCount > 0 ? 'var(--color-high-bg)' : 'var(--color-low-bg)' }}>
+              <Route size={20} style={{ color: data.attackPathsCount > 0 ? 'var(--color-high)' : 'var(--color-low)' }} />
+            </div>
+            <div>
+              <p className="text-heading font-semibold text-[var(--text-primary)]">{data.attackPathsCount}</p>
+              <p className="text-micro text-[var(--text-tertiary)]">Attack Paths</p>
+            </div>
+          </Link>
+          <Link href="/dashboard/shadow-admins" className="rounded-[var(--radius-card)] border border-[var(--border-default)] bg-[var(--bg-primary)] p-4 flex items-center gap-4 hover:border-[var(--border-hover)] transition-colors" style={{ boxShadow: 'var(--shadow-card)' }}>
+            <div className="w-10 h-10 rounded-lg flex items-center justify-center" style={{ backgroundColor: data.shadowAdminCount > 0 ? 'var(--color-high-bg)' : 'var(--color-low-bg)' }}>
+              <UserX size={20} style={{ color: data.shadowAdminCount > 0 ? 'var(--color-high)' : 'var(--color-low)' }} />
+            </div>
+            <div>
+              <p className="text-heading font-semibold text-[var(--text-primary)]">{data.shadowAdminCount}</p>
+              <p className="text-micro text-[var(--text-tertiary)]">Shadow Admins</p>
+            </div>
+          </Link>
+        </div>
+      )}
 
       {/* Risk Trend + Top 10 */}
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">

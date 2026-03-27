@@ -3,17 +3,19 @@
 import { useSession, signOut } from 'next-auth/react'
 import { useState, useCallback, useEffect } from 'react'
 import { useTranslations, useLocale } from 'next-intl'
-import { Search, Moon, Sun, ChevronDown, LogOut } from 'lucide-react'
+import { Search, Moon, Sun, ChevronDown, LogOut, Brain } from 'lucide-react'
 import { ROLE_LABELS } from '@/lib/utils/rbac'
 import { setLocale } from '@/lib/locale'
 import type { AppRole } from '@/lib/utils/rbac'
 import type { Locale } from '@/lib/locale'
 import { NotificationPanel } from '@/components/dashboard/notification-panel'
+import { AiChatPanel } from '@/components/dashboard/ai-chat-panel'
 
 export function Header() {
   const { data: session } = useSession()
   const [darkMode, setDarkMode] = useState(false)
   const [userMenuOpen, setUserMenuOpen] = useState(false)
+  const [chatOpen, setChatOpen] = useState(false)
   const locale = useLocale() as Locale
   const t = useTranslations('common')
 
@@ -41,6 +43,7 @@ export function Header() {
   const userRole = (session?.user as any)?.appRole as AppRole | undefined
 
   return (
+    <>
     <header className="sticky top-0 z-30 bg-[var(--bg-primary)] border-b border-[var(--border-default)] px-4 lg:px-6 h-14 flex items-center justify-between">
       <div className="lg:hidden w-10" />
 
@@ -72,6 +75,13 @@ export function Header() {
           title="Toggle dark mode"
         >
           {darkMode ? <Sun size={16} /> : <Moon size={16} />}
+        </button>
+        <button
+          onClick={() => setChatOpen(!chatOpen)}
+          className={`p-2 rounded-md transition-colors ${chatOpen ? 'bg-[var(--color-info)] text-white' : 'text-[var(--text-tertiary)] hover:bg-[var(--bg-secondary)]'}`}
+          title="AI Assistant"
+        >
+          <Brain size={16} />
         </button>
         <NotificationPanel />
 
@@ -121,5 +131,7 @@ export function Header() {
         )}
       </div>
     </header>
+    <AiChatPanel open={chatOpen} onClose={() => setChatOpen(false)} />
+    </>
   )
 }

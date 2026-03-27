@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { auth } from '@/lib/auth/config'
 import { db } from '@/lib/db'
-import { identities, policyViolations, entitlements, integrationSources } from '@/lib/db/schema'
+import { identities, policyViolations, entitlements, integrationSources, identityThreats, attackPaths, shadowAdmins } from '@/lib/db/schema'
 import { eq, and, count, desc, sql, avg } from 'drizzle-orm'
 
 export async function GET() {
@@ -21,6 +21,9 @@ export async function GET() {
     pendingCertifications,
     openViolations,
     integrations,
+    activeThreatsResult,
+    attackPathsResult,
+    shadowAdminsResult,
     riskDistribution,
   ] = await Promise.all([
     // Identity counts by type
@@ -86,6 +89,24 @@ export async function GET() {
       .from(integrationSources)
       .where(eq(integrationSources.orgId, orgId)),
 
+    // Active threats count
+    db
+      .select({ count: count() })
+      .from(identityThreats)
+      .where(and(eq(identityThreats.orgId, orgId), eq(identityThreats.status, 'active'))),
+
+    // Attack paths count
+    db
+      .select({ count: count() })
+      .from(attackPaths)
+      .where(eq(attackPaths.orgId, orgId)),
+
+    // Shadow admins count (open)
+    db
+      .select({ count: count() })
+      .from(shadowAdmins)
+      .where(and(eq(shadowAdmins.orgId, orgId), eq(shadowAdmins.status, 'open'))),
+
     // Risk score distribution
     db
       .select({
@@ -144,5 +165,8 @@ export async function GET() {
       { type: 'violation', label: 'Open Violations', count: openViolations[0]?.count ?? 0 },
     ],
     integrationHealth: integrations,
+    activeThreats: activeThreatsResult[0]?.count ?? 0,
+    attackPathsCount: attackPathsResult[0]?.count ?? 0,
+    shadowAdminCount: shadowAdminsResult[0]?.count ?? 0,
   })
 }

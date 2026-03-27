@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/lib/auth/config'
 import { db } from '@/lib/db'
-import { identities, entitlements, resources, groupMemberships, groups } from '@/lib/db/schema'
+import { identities, entitlements, resources, groupMemberships, groups, policyViolations, policies, accounts } from '@/lib/db/schema'
 import { eq, and, desc, inArray } from 'drizzle-orm'
 
 export async function GET(req: NextRequest) {
@@ -31,10 +31,18 @@ export async function GET(req: NextRequest) {
 
   // Get entitlements + resources for these identities
   const entitlementData = await db.select({
+    id: entitlements.id,
     identityId: entitlements.identityId,
     resourceId: entitlements.resourceId,
     permissionName: entitlements.permissionName,
+    permissionType: entitlements.permissionType,
+    permissionScope: entitlements.permissionScope,
     adTier: entitlements.adTierOfPermission,
+    certificationStatus: entitlements.certificationStatus,
+    lastUsedAt: entitlements.lastUsedAt,
+    grantedAt: entitlements.grantedAt,
+    grantedBy: entitlements.grantedBy,
+    riskTags: entitlements.riskTags,
     resourceName: resources.name,
     resourceType: resources.type,
     resourceTier: resources.adTier,
@@ -53,6 +61,9 @@ export async function GET(req: NextRequest) {
   const membershipData = await db.select({
     identityId: groupMemberships.identityId,
     groupId: groupMemberships.groupId,
+    membershipType: groupMemberships.membershipType,
+    addedAt: groupMemberships.addedAt,
+    addedBy: groupMemberships.addedBy,
     groupName: groups.name,
     groupType: groups.type,
     groupScope: groups.scope,
@@ -66,6 +77,42 @@ export async function GET(req: NextRequest) {
     .limit(500)
 
   const relevantMemberships = membershipData.filter(m => identityIds.includes(m.identityId))
+
+  // Get violations with policy info
+  const violationData = await db.select({
+    id: policyViolations.id,
+    identityId: policyViolations.identityId,
+    violationType: policyViolations.violationType,
+    severity: policyViolations.severity,
+    status: policyViolations.status,
+    detectedAt: policyViolations.detectedAt,
+    remediatedAt: policyViolations.remediatedAt,
+    exceptionReason: policyViolations.exceptionReason,
+    policyName: policies.name,
+    policyType: policies.type,
+  }).from(policyViolations)
+    .innerJoin(policies, eq(policyViolations.policyId, policies.id))
+    .where(eq(policyViolations.orgId, orgId))
+    .limit(500)
+
+  const relevantViolations = violationData.filter(v => identityIds.includes(v.identityId))
+
+  // Get accounts for these identities
+  const accountData = await db.select({
+    id: accounts.id,
+    identityId: accounts.identityId,
+    accountName: accounts.accountName,
+    platform: accounts.platform,
+    accountType: accounts.accountType,
+    enabled: accounts.enabled,
+    mfaEnabled: accounts.mfaEnabled,
+    privileged: accounts.privileged,
+    lastAuthenticatedAt: accounts.lastAuthenticatedAt,
+  }).from(accounts)
+    .where(eq(accounts.orgId, orgId))
+    .limit(500)
+
+  const relevantAccounts = accountData.filter(a => identityIds.includes(a.identityId))
 
   // Collect manager/owner IDs that are not already in topIdentities
   const extraIdentityIds = new Set<string>()
@@ -95,7 +142,7 @@ export async function GET(req: NextRequest) {
   const nodes: Array<{
     id: string
     label: string
-    type: 'identity' | 'resource' | 'group'
+    type: 'identity' | 'resource' | 'group' | 'violation' | 'account'
     subType?: string
     tier?: string
     riskScore?: number
@@ -108,8 +155,9 @@ export async function GET(req: NextRequest) {
   const links: Array<{
     source: string
     target: string
-    type: 'entitlement' | 'membership' | 'manager' | 'owner'
+    type: 'entitlement' | 'membership' | 'manager' | 'owner' | 'violation' | 'account'
     label?: string
+    properties?: Record<string, any>
   }> = []
 
   const nodeSet = new Set<string>()
@@ -181,6 +229,17 @@ export async function GET(req: NextRequest) {
       target: ent.resourceId,
       type: 'entitlement',
       label: ent.permissionName,
+      properties: {
+        permissionName: ent.permissionName,
+        permissionType: ent.permissionType,
+        adTierOfPermission: ent.adTier,
+        certificationStatus: ent.certificationStatus,
+        lastUsedAt: ent.lastUsedAt,
+        grantedAt: ent.grantedAt,
+        grantedBy: ent.grantedBy,
+        riskTags: ent.riskTags,
+        permissionScope: ent.permissionScope,
+      },
     })
   }
 
@@ -209,6 +268,81 @@ export async function GET(req: NextRequest) {
       source: mem.identityId,
       target: mem.groupId,
       type: 'membership',
+      properties: {
+        membershipType: mem.membershipType,
+        addedAt: mem.addedAt,
+        addedBy: mem.addedBy,
+      },
+    })
+  }
+
+  // Add violation nodes + violation links
+  for (const viol of relevantViolations) {
+    const violNodeId = `violation-${viol.id}`
+    if (!nodeSet.has(violNodeId)) {
+      nodeSet.add(violNodeId)
+      nodes.push({
+        id: violNodeId,
+        label: (viol.violationType || 'violation').replace(/_/g, ' '),
+        type: 'violation',
+        subType: viol.violationType,
+        properties: {
+          violationType: viol.violationType,
+          severity: viol.severity,
+          status: viol.status,
+          detectedAt: viol.detectedAt,
+          remediatedAt: viol.remediatedAt,
+          exceptionReason: viol.exceptionReason,
+          policyName: viol.policyName,
+          policyType: viol.policyType,
+        },
+      })
+    }
+    links.push({
+      source: viol.identityId,
+      target: violNodeId,
+      type: 'violation',
+      label: viol.violationType?.replace(/_/g, ' ') || 'violation',
+      properties: {
+        violationType: viol.violationType,
+        severity: viol.severity,
+        status: viol.status,
+      },
+    })
+  }
+
+  // Add account nodes + account links
+  for (const acct of relevantAccounts) {
+    const acctNodeId = `account-${acct.id}`
+    if (!nodeSet.has(acctNodeId)) {
+      nodeSet.add(acctNodeId)
+      nodes.push({
+        id: acctNodeId,
+        label: acct.accountName,
+        type: 'account',
+        subType: acct.accountType,
+        properties: {
+          accountName: acct.accountName,
+          platform: acct.platform,
+          accountType: acct.accountType,
+          enabled: acct.enabled,
+          mfaEnabled: acct.mfaEnabled,
+          privileged: acct.privileged,
+          lastAuthenticatedAt: acct.lastAuthenticatedAt,
+        },
+      })
+    }
+    links.push({
+      source: acct.identityId,
+      target: acctNodeId,
+      type: 'account',
+      label: acct.platform,
+      properties: {
+        platform: acct.platform,
+        accountType: acct.accountType,
+        mfaEnabled: acct.mfaEnabled,
+        privileged: acct.privileged,
+      },
     })
   }
 

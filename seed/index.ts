@@ -636,7 +636,358 @@ async function seed() {
   await db.insert(schema.actionLog).values(actionLogValues)
   console.log('Created sample action log entries')
 
-  // 13. Sample remediation plan
+  // 13. AD Delegations (20 — mix of dangerous and benign)
+  const t0Identities = allIdentities.filter(i => i.adTier === 'tier_0')
+  const t1Identities = allIdentities.filter(i => i.adTier === 'tier_1')
+  const t2Identities = allIdentities.filter(i => i.adTier === 'tier_2')
+  const privilegedGroups = allGroups.filter(g => g.isPrivileged)
+  const domainAdminsGroup = allGroups.find(g => g.name === 'Domain Admins')
+  const enterpriseAdminsGroup = allGroups.find(g => g.name === 'Enterprise Admins')
+
+  const delegationValues: (typeof schema.adDelegations.$inferInsert)[] = [
+    // Dangerous: T2 identity with AddMember on Domain Admins group
+    ...(t2Identities.slice(0, 3).map((t2, i) => ({
+      sourceIdentityId: t2.id,
+      targetDn: `CN=Domain Admins,CN=Users,DC=acmefs,DC=local`,
+      targetObjectType: 'group',
+      permission: 'add_member',
+      inherited: false,
+      adTierOfTarget: 'tier_0' as const,
+      dangerous: true,
+      orgId: org.id,
+    }))),
+    // Dangerous: T2 with GenericAll on a T0 user
+    ...(t2Identities.slice(3, 5).map((t2) => ({
+      sourceIdentityId: t2.id,
+      targetDn: `CN=${t0Identities[0]?.displayName || 'Admin'},CN=Users,DC=acmefs,DC=local`,
+      targetObjectType: 'user',
+      permission: 'generic_all',
+      inherited: false,
+      adTierOfTarget: 'tier_0' as const,
+      dangerous: true,
+      orgId: org.id,
+    }))),
+    // Dangerous: T1 with WriteDacl on Domain Controllers OU
+    ...(t1Identities.slice(0, 2).map((t1) => ({
+      sourceIdentityId: t1.id,
+      targetDn: `OU=Domain Controllers,DC=acmefs,DC=local`,
+      targetObjectType: 'ou',
+      permission: 'write_dacl',
+      inherited: false,
+      adTierOfTarget: 'tier_0' as const,
+      dangerous: true,
+      orgId: org.id,
+    }))),
+    // Dangerous: T2 with ForceChangePassword on a T0 identity
+    {
+      sourceIdentityId: t2Identities[5]?.id || t2Identities[0].id,
+      targetDn: `CN=${t0Identities[1]?.displayName || 'SchemaAdmin'},CN=Users,DC=acmefs,DC=local`,
+      targetObjectType: 'user',
+      permission: 'force_change_password',
+      inherited: false,
+      adTierOfTarget: 'tier_0' as const,
+      dangerous: true,
+      orgId: org.id,
+    },
+    // Dangerous: T2 with WriteOwner on Enterprise Admins
+    {
+      sourceIdentityId: t2Identities[6]?.id || t2Identities[0].id,
+      targetDn: `CN=Enterprise Admins,CN=Users,DC=acmefs,DC=local`,
+      targetObjectType: 'group',
+      permission: 'write_owner',
+      inherited: false,
+      adTierOfTarget: 'tier_0' as const,
+      dangerous: true,
+      orgId: org.id,
+    },
+    // Benign: T1 with read on T1 objects
+    ...(t1Identities.slice(2, 7).map((t1, i) => ({
+      sourceIdentityId: t1.id,
+      targetDn: `CN=SRV-APP-${i + 1},OU=Servers,DC=acmefs,DC=local`,
+      targetObjectType: 'computer',
+      permission: 'read_property',
+      inherited: true,
+      adTierOfTarget: 'tier_1' as const,
+      dangerous: false,
+      orgId: org.id,
+    }))),
+    // Benign: T2 with read on T2 objects
+    ...(t2Identities.slice(10, 15).map((t2, i) => ({
+      sourceIdentityId: t2.id,
+      targetDn: `CN=WS-${(i + 1).toString().padStart(3, '0')},OU=Workstations,DC=acmefs,DC=local`,
+      targetObjectType: 'computer',
+      permission: 'read_property',
+      inherited: true,
+      adTierOfTarget: 'tier_2' as const,
+      dangerous: false,
+      orgId: org.id,
+    }))),
+  ]
+  await db.insert(schema.adDelegations).values(delegationValues)
+  console.log(`Created ${delegationValues.length} AD delegations`)
+
+  // 14. ACL Entries (30 — some with GenericAll on T0 objects)
+  const aclValues: (typeof schema.aclEntries.$inferInsert)[] = [
+    // Critical: GenericAll on Domain Admins by a T2 identity
+    ...(t2Identities.slice(0, 3).map((t2) => ({
+      objectDn: `CN=Domain Admins,CN=Users,DC=acmefs,DC=local`,
+      objectType: 'group',
+      principalIdentityId: t2.id,
+      accessType: 'allow',
+      rights: ['GenericAll'],
+      adTierOfObject: 'tier_0' as const,
+      orgId: org.id,
+    }))),
+    // Critical: WriteDacl on Domain Controllers
+    ...(t2Identities.slice(3, 5).map((t2) => ({
+      objectDn: `OU=Domain Controllers,DC=acmefs,DC=local`,
+      objectType: 'ou',
+      principalIdentityId: t2.id,
+      accessType: 'allow',
+      rights: ['WriteDacl', 'WriteProperty'],
+      adTierOfObject: 'tier_0' as const,
+      orgId: org.id,
+    }))),
+    // Critical: WriteOwner on Schema Admins by a T1 identity
+    ...(t1Identities.slice(0, 2).map((t1) => ({
+      objectDn: `CN=Schema Admins,CN=Users,DC=acmefs,DC=local`,
+      objectType: 'group',
+      principalIdentityId: t1.id,
+      accessType: 'allow',
+      rights: ['WriteOwner'],
+      adTierOfObject: 'tier_0' as const,
+      orgId: org.id,
+    }))),
+    // High: AddMember on privileged group via a group principal
+    ...(privilegedGroups.slice(0, 3).map((pg) => ({
+      objectDn: `CN=${pg.name},CN=Users,DC=acmefs,DC=local`,
+      objectType: 'group',
+      principalGroupId: allGroups.find(g => !g.isPrivileged)?.id || allGroups[allGroups.length - 1].id,
+      accessType: 'allow',
+      rights: ['AddMember'],
+      adTierOfObject: pg.adTier as 'tier_0' | 'tier_1' | 'tier_2' | 'unclassified',
+      orgId: org.id,
+    }))),
+    // Medium: ExtendedRight on user objects
+    ...(t1Identities.slice(2, 7).map((t1, i) => ({
+      objectDn: `CN=SVC-APP-${i + 1},CN=Service Accounts,DC=acmefs,DC=local`,
+      objectType: 'user',
+      principalIdentityId: t1.id,
+      accessType: 'allow',
+      rights: ['ExtendedRight'],
+      objectTypeGuid: 'ab721a53-1e2f-11d0-9819-00aa0040529b', // User-Force-Change-Password
+      adTierOfObject: 'tier_1' as const,
+      orgId: org.id,
+    }))),
+    // Low: ReadProperty on T2 objects
+    ...(t2Identities.slice(15, 25).map((t2, i) => ({
+      objectDn: `CN=WS-${(i + 1).toString().padStart(3, '0')},OU=Workstations,DC=acmefs,DC=local`,
+      objectType: 'computer',
+      principalIdentityId: t2.id,
+      accessType: 'allow',
+      rights: ['ReadProperty'],
+      adTierOfObject: 'tier_2' as const,
+      orgId: org.id,
+    }))),
+  ]
+  await db.insert(schema.aclEntries).values(aclValues)
+  console.log(`Created ${aclValues.length} ACL entries`)
+
+  // 15. Pre-computed Attack Paths (10)
+  const attackPathValues: (typeof schema.attackPaths.$inferInsert)[] = [
+    // Path 1: T2 user → AddMember on Domain Admins → Domain Admin
+    {
+      sourceIdentityId: t2Identities[0].id,
+      targetIdentityId: t0Identities[0]?.id,
+      pathNodes: [
+        { id: t2Identities[0].id, type: 'identity', name: t2Identities[0].displayName, tier: 'tier_2' },
+        { id: 'dn:CN=Domain Admins,CN=Users,DC=acmefs,DC=local', type: 'group', name: 'Domain Admins', tier: 'tier_0' },
+        { id: t0Identities[0]?.id || 'unknown', type: 'identity', name: t0Identities[0]?.displayName || 'T0 Admin', tier: 'tier_0' },
+      ],
+      pathEdges: [
+        { source: t2Identities[0].id, target: 'dn:CN=Domain Admins,CN=Users,DC=acmefs,DC=local', type: 'delegation', label: 'add_member', technique: 'AddMember' },
+        { source: 'dn:CN=Domain Admins,CN=Users,DC=acmefs,DC=local', target: t0Identities[0]?.id || 'unknown', type: 'membership', label: 'Domain Admins', technique: 'GroupMembership' },
+      ],
+      pathLength: 2,
+      riskScore: 95,
+      attackTechnique: 'Group Membership Abuse',
+      mitreId: 'T1098.002',
+      status: 'open' as const,
+      orgId: org.id,
+    },
+    // Path 2: T2 user → GenericAll on T0 user
+    {
+      sourceIdentityId: t2Identities[3].id,
+      targetIdentityId: t0Identities[0]?.id,
+      pathNodes: [
+        { id: t2Identities[3].id, type: 'identity', name: t2Identities[3].displayName, tier: 'tier_2' },
+        { id: t0Identities[0]?.id || 'unknown', type: 'identity', name: t0Identities[0]?.displayName || 'T0 Admin', tier: 'tier_0' },
+      ],
+      pathEdges: [
+        { source: t2Identities[3].id, target: t0Identities[0]?.id || 'unknown', type: 'acl', label: 'GenericAll', technique: 'GenericAll' },
+      ],
+      pathLength: 1,
+      riskScore: 100,
+      attackTechnique: 'AD Object Takeover',
+      mitreId: 'T1222.001',
+      status: 'open' as const,
+      orgId: org.id,
+    },
+    // Path 3: T2 → group membership → T1 service → entitlement to DC
+    {
+      sourceIdentityId: t2Identities[7]?.id || t2Identities[0].id,
+      targetResourceId: allResources.find(r => r.type === 'domain_controller')?.id,
+      pathNodes: [
+        { id: t2Identities[7]?.id || t2Identities[0].id, type: 'identity', name: t2Identities[7]?.displayName || t2Identities[0].displayName, tier: 'tier_2' },
+        { id: allGroups.find(g => g.name === 'APP-Jenkins-Admins')?.id || allGroups[0].id, type: 'group', name: 'APP-Jenkins-Admins', tier: 'tier_1' },
+        { id: allResources.find(r => r.type === 'domain_controller')?.id || allResources[0].id, type: 'resource', name: 'DC-PRIMARY', tier: 'tier_0' },
+      ],
+      pathEdges: [
+        { source: t2Identities[7]?.id || t2Identities[0].id, target: allGroups.find(g => g.name === 'APP-Jenkins-Admins')?.id || allGroups[0].id, type: 'membership', label: 'APP-Jenkins-Admins', technique: 'GroupMembership' },
+        { source: allGroups.find(g => g.name === 'APP-Jenkins-Admins')?.id || allGroups[0].id, target: allResources.find(r => r.type === 'domain_controller')?.id || allResources[0].id, type: 'entitlement', label: 'Server Operator', technique: 'Entitlement' },
+      ],
+      pathLength: 2,
+      riskScore: 85,
+      attackTechnique: 'Privilege Escalation via Entitlement',
+      mitreId: 'T1078.002',
+      status: 'open' as const,
+      orgId: org.id,
+    },
+    // Path 4: T2 → WriteDacl on DC OU
+    {
+      sourceIdentityId: t2Identities[4]?.id || t2Identities[0].id,
+      pathNodes: [
+        { id: t2Identities[4]?.id || t2Identities[0].id, type: 'identity', name: t2Identities[4]?.displayName || t2Identities[0].displayName, tier: 'tier_2' },
+        { id: 'dn:OU=Domain Controllers,DC=acmefs,DC=local', type: 'ou', name: 'Domain Controllers', tier: 'tier_0' },
+      ],
+      pathEdges: [
+        { source: t2Identities[4]?.id || t2Identities[0].id, target: 'dn:OU=Domain Controllers,DC=acmefs,DC=local', type: 'acl', label: 'WriteDacl', technique: 'WriteDACL' },
+      ],
+      pathLength: 1,
+      riskScore: 90,
+      attackTechnique: 'DACL Modification',
+      mitreId: 'T1222.001',
+      status: 'open' as const,
+      orgId: org.id,
+    },
+    // Path 5: T1 → WriteOwner on Schema Admins
+    {
+      sourceIdentityId: t1Identities[0]?.id || allIdentities[0].id,
+      pathNodes: [
+        { id: t1Identities[0]?.id || allIdentities[0].id, type: 'identity', name: t1Identities[0]?.displayName || 'T1 User', tier: 'tier_1' },
+        { id: 'dn:CN=Schema Admins,CN=Users,DC=acmefs,DC=local', type: 'group', name: 'Schema Admins', tier: 'tier_0' },
+      ],
+      pathEdges: [
+        { source: t1Identities[0]?.id || allIdentities[0].id, target: 'dn:CN=Schema Admins,CN=Users,DC=acmefs,DC=local', type: 'acl', label: 'WriteOwner', technique: 'WriteOwner' },
+      ],
+      pathLength: 1,
+      riskScore: 88,
+      attackTechnique: 'Owner Modification',
+      mitreId: 'T1222.001',
+      status: 'open' as const,
+      orgId: org.id,
+    },
+    // Path 6: T2 → ForceChangePassword on T0 admin
+    {
+      sourceIdentityId: t2Identities[5]?.id || t2Identities[0].id,
+      targetIdentityId: t0Identities[1]?.id || t0Identities[0]?.id,
+      pathNodes: [
+        { id: t2Identities[5]?.id || t2Identities[0].id, type: 'identity', name: t2Identities[5]?.displayName || t2Identities[0].displayName, tier: 'tier_2' },
+        { id: t0Identities[1]?.id || t0Identities[0]?.id || 'unknown', type: 'identity', name: t0Identities[1]?.displayName || 'T0 Admin', tier: 'tier_0' },
+      ],
+      pathEdges: [
+        { source: t2Identities[5]?.id || t2Identities[0].id, target: t0Identities[1]?.id || t0Identities[0]?.id || 'unknown', type: 'delegation', label: 'force_change_password', technique: 'ForceChangePassword' },
+      ],
+      pathLength: 1,
+      riskScore: 92,
+      attackTechnique: 'Forced Password Change',
+      mitreId: 'T1098',
+      status: 'open' as const,
+      orgId: org.id,
+    },
+    // Path 7: T2 → WriteOwner on Enterprise Admins
+    {
+      sourceIdentityId: t2Identities[6]?.id || t2Identities[0].id,
+      pathNodes: [
+        { id: t2Identities[6]?.id || t2Identities[0].id, type: 'identity', name: t2Identities[6]?.displayName || t2Identities[0].displayName, tier: 'tier_2' },
+        { id: 'dn:CN=Enterprise Admins,CN=Users,DC=acmefs,DC=local', type: 'group', name: 'Enterprise Admins', tier: 'tier_0' },
+      ],
+      pathEdges: [
+        { source: t2Identities[6]?.id || t2Identities[0].id, target: 'dn:CN=Enterprise Admins,CN=Users,DC=acmefs,DC=local', type: 'delegation', label: 'write_owner', technique: 'WriteOwner' },
+      ],
+      pathLength: 1,
+      riskScore: 91,
+      attackTechnique: 'Owner Modification',
+      mitreId: 'T1222.001',
+      status: 'acknowledged' as const,
+      orgId: org.id,
+    },
+    // Path 8: NHI owner compromise chain
+    {
+      sourceIdentityId: t2Identities[8]?.id || t2Identities[0].id,
+      targetResourceId: allResources.find(r => r.type === 'domain_controller')?.id,
+      pathNodes: [
+        { id: t2Identities[8]?.id || t2Identities[0].id, type: 'identity', name: t2Identities[8]?.displayName || 'T2 User', tier: 'tier_2' },
+        { id: nhiIds[0]?.id || allIdentities[allIdentities.length - 1].id, type: 'identity', name: nhiIds[0]?.displayName || 'svc-account', tier: 'tier_0' },
+        { id: allResources.find(r => r.type === 'domain_controller')?.id || allResources[0].id, type: 'resource', name: 'DC-PRIMARY', tier: 'tier_0' },
+      ],
+      pathEdges: [
+        { source: t2Identities[8]?.id || t2Identities[0].id, target: nhiIds[0]?.id || allIdentities[allIdentities.length - 1].id, type: 'owner', label: 'owns', technique: 'OwnerOf' },
+        { source: nhiIds[0]?.id || allIdentities[allIdentities.length - 1].id, target: allResources.find(r => r.type === 'domain_controller')?.id || allResources[0].id, type: 'entitlement', label: 'Domain Admin', technique: 'Entitlement' },
+      ],
+      pathLength: 2,
+      riskScore: 82,
+      attackTechnique: 'NHI Owner Compromise',
+      mitreId: 'T1078.004',
+      status: 'open' as const,
+      orgId: org.id,
+    },
+    // Path 9: Multi-hop: T2 → group → nested group → Domain Admins
+    {
+      sourceIdentityId: t2Identities[9]?.id || t2Identities[0].id,
+      pathNodes: [
+        { id: t2Identities[9]?.id || t2Identities[0].id, type: 'identity', name: t2Identities[9]?.displayName || 'T2 User', tier: 'tier_2' },
+        { id: allGroups.find(g => g.name === 'IT-Department')?.id || allGroups[0].id, type: 'group', name: 'IT-Department', tier: 'tier_2' },
+        { id: allGroups.find(g => g.name === 'APP-ERP-Admins')?.id || allGroups[0].id, type: 'group', name: 'APP-ERP-Admins', tier: 'tier_1' },
+        { id: 'dn:CN=Domain Admins,CN=Users,DC=acmefs,DC=local', type: 'group', name: 'Domain Admins', tier: 'tier_0' },
+      ],
+      pathEdges: [
+        { source: t2Identities[9]?.id || t2Identities[0].id, target: allGroups.find(g => g.name === 'IT-Department')?.id || allGroups[0].id, type: 'membership', label: 'IT-Department', technique: 'GroupMembership' },
+        { source: allGroups.find(g => g.name === 'IT-Department')?.id || allGroups[0].id, target: allGroups.find(g => g.name === 'APP-ERP-Admins')?.id || allGroups[0].id, type: 'membership', label: 'nested', technique: 'GroupMembership' },
+        { source: allGroups.find(g => g.name === 'APP-ERP-Admins')?.id || allGroups[0].id, target: 'dn:CN=Domain Admins,CN=Users,DC=acmefs,DC=local', type: 'acl', label: 'AddMember', technique: 'AddMember' },
+      ],
+      pathLength: 3,
+      riskScore: 75,
+      attackTechnique: 'Group Membership Abuse',
+      mitreId: 'T1098.002',
+      status: 'open' as const,
+      orgId: org.id,
+    },
+    // Path 10: T2 → delegation abuse → T0 resource
+    {
+      sourceIdentityId: t2Identities[10]?.id || t2Identities[0].id,
+      targetResourceId: allResources.find(r => r.name === 'DC-SECONDARY')?.id || allResources.find(r => r.type === 'domain_controller')?.id,
+      pathNodes: [
+        { id: t2Identities[10]?.id || t2Identities[0].id, type: 'identity', name: t2Identities[10]?.displayName || 'T2 User', tier: 'tier_2' },
+        { id: 'dn:OU=Domain Controllers,DC=acmefs,DC=local', type: 'ou', name: 'Domain Controllers OU', tier: 'tier_0' },
+        { id: allResources.find(r => r.name === 'DC-SECONDARY')?.id || allResources[0].id, type: 'resource', name: 'DC-SECONDARY', tier: 'tier_0' },
+      ],
+      pathEdges: [
+        { source: t2Identities[10]?.id || t2Identities[0].id, target: 'dn:OU=Domain Controllers,DC=acmefs,DC=local', type: 'delegation', label: 'generic_all', technique: 'GenericAll' },
+        { source: 'dn:OU=Domain Controllers,DC=acmefs,DC=local', target: allResources.find(r => r.name === 'DC-SECONDARY')?.id || allResources[0].id, type: 'entitlement', label: 'Full Control', technique: 'Entitlement' },
+      ],
+      pathLength: 2,
+      riskScore: 87,
+      attackTechnique: 'Delegation Abuse',
+      mitreId: 'T1134.001',
+      status: 'open' as const,
+      orgId: org.id,
+    },
+  ]
+  await db.insert(schema.attackPaths).values(attackPathValues)
+  console.log(`Created ${attackPathValues.length} attack paths`)
+
+  // 16. Sample remediation plan
   await db.insert(schema.remediationPlans).values({
     generatedBy: 'ai',
     inputParams: { budget: 50000, timelineDays: 30, riskAppetite: 'moderate' },
@@ -655,6 +1006,516 @@ async function seed() {
     orgId: org.id,
   })
   console.log('Created sample remediation plan')
+
+  // ═══════════════════════════════════════════════
+  // Phase N3: ITDR Seed Data
+  // ═══════════════════════════════════════════════
+
+  // 17. Detection Rules (10 built-in rules)
+  const detectionRuleValues = [
+    {
+      name: 'Password Spray Detection',
+      description: 'Detects >5 failed logins from same IP against different accounts in 10 minutes',
+      threatType: 'password_spray',
+      killChainPhase: 'credential_access',
+      severity: 'high' as const,
+      logic: { type: 'threshold', params: { threshold: 5, windowMinutes: 10, metric: 'unique_targets_per_ip' }, conditions: [{ field: 'eventType', op: 'eq', value: 'login_failure' }] },
+      mitreTechniqueIds: ['T1110.003'],
+      orgId: org.id,
+    },
+    {
+      name: 'Credential Stuffing Detection',
+      description: 'Detects >10 failed logins to single account in 5 minutes from different IPs',
+      threatType: 'credential_stuffing',
+      killChainPhase: 'credential_access',
+      severity: 'high' as const,
+      logic: { type: 'threshold', params: { threshold: 10, windowMinutes: 5, metric: 'failures_per_identity' }, conditions: [{ field: 'eventType', op: 'eq', value: 'login_failure' }] },
+      mitreTechniqueIds: ['T1110.001'],
+      orgId: org.id,
+    },
+    {
+      name: 'MFA Fatigue Detection',
+      description: 'Detects >3 MFA prompts with no approval in 5 minutes',
+      threatType: 'mfa_fatigue',
+      killChainPhase: 'credential_access',
+      severity: 'high' as const,
+      logic: { type: 'threshold', params: { threshold: 3, windowMinutes: 5, metric: 'mfa_prompts_no_success' }, conditions: [{ field: 'eventType', op: 'in', value: ['mfa_prompt', 'mfa_failure'] }] },
+      mitreTechniqueIds: ['T1621'],
+      orgId: org.id,
+    },
+    {
+      name: 'Token Replay Detection',
+      description: 'Detects same session/token from 2+ IPs within 1 hour',
+      threatType: 'token_replay',
+      killChainPhase: 'credential_access',
+      severity: 'critical' as const,
+      logic: { type: 'anomaly', params: { minIps: 2, windowMinutes: 60, metric: 'ips_per_session' }, conditions: [{ field: 'parsedFields.sessionId', op: 'exists', value: true }] },
+      mitreTechniqueIds: ['T1550'],
+      orgId: org.id,
+    },
+    {
+      name: 'Impossible Travel Detection',
+      description: 'Detects authentication from 2 locations >500km apart in <1 hour',
+      threatType: 'impossible_travel',
+      killChainPhase: 'initial_access',
+      severity: 'high' as const,
+      logic: { type: 'anomaly', params: { minDistanceKm: 500, windowMinutes: 60 }, conditions: [{ field: 'eventType', op: 'in', value: ['login_success', 'session_start'] }] },
+      mitreTechniqueIds: ['T1078'],
+      orgId: org.id,
+    },
+    {
+      name: 'Privilege Escalation Detection',
+      description: 'Detects non-admin being added to privileged groups',
+      threatType: 'privilege_escalation',
+      killChainPhase: 'privilege_escalation',
+      severity: 'critical' as const,
+      logic: { type: 'sequence', params: { groups: ['Domain Admins', 'Enterprise Admins', 'Schema Admins'] }, conditions: [{ field: 'eventType', op: 'eq', value: 'group_add' }] },
+      mitreTechniqueIds: ['T1098'],
+      orgId: org.id,
+    },
+    {
+      name: 'Lateral Movement Detection',
+      description: 'Detects single identity authenticating to >5 different servers in 30 minutes',
+      threatType: 'lateral_movement',
+      killChainPhase: 'lateral_movement',
+      severity: 'high' as const,
+      logic: { type: 'threshold', params: { threshold: 5, windowMinutes: 30, metric: 'unique_targets_per_identity' }, conditions: [{ field: 'eventType', op: 'in', value: ['login_success', 'session_start'] }] },
+      mitreTechniqueIds: ['T1021'],
+      orgId: org.id,
+    },
+    {
+      name: 'Golden Ticket Detection',
+      description: 'Detects Kerberos TGT with anomalous lifetime >10 hours',
+      threatType: 'golden_ticket',
+      killChainPhase: 'persistence',
+      severity: 'critical' as const,
+      logic: { type: 'anomaly', params: { maxLifetimeHours: 10 }, conditions: [{ field: 'eventType', op: 'eq', value: 'tgs_request' }] },
+      mitreTechniqueIds: ['T1558.001'],
+      orgId: org.id,
+    },
+    {
+      name: 'DCSync Detection',
+      description: 'Detects non-DC identity performing directory replication',
+      threatType: 'dcsync',
+      killChainPhase: 'credential_access',
+      severity: 'critical' as const,
+      logic: { type: 'sequence', params: {}, conditions: [{ field: 'eventType', op: 'eq', value: 'replication_request' }] },
+      mitreTechniqueIds: ['T1003.006'],
+      orgId: org.id,
+    },
+    {
+      name: 'Service Account Abuse Detection',
+      description: 'Detects service account authenticating interactively or from unexpected IP',
+      threatType: 'service_account_abuse',
+      killChainPhase: 'initial_access',
+      severity: 'high' as const,
+      logic: { type: 'anomaly', params: {}, conditions: [{ field: 'identity.subType', op: 'eq', value: 'service_account' }] },
+      mitreTechniqueIds: ['T1078.002'],
+      orgId: org.id,
+    },
+  ]
+
+  await db.insert(schema.detectionRules).values(detectionRuleValues)
+  console.log(`Created ${detectionRuleValues.length} detection rules`)
+
+  // 18. Identity Events (50 sample events)
+  const sampleIps = ['10.0.1.15', '10.0.2.30', '192.168.1.100', '172.16.0.50', '85.120.44.22', '203.0.113.5', '198.51.100.10']
+  const sampleLocations = ['Riyadh, SA', 'Jeddah, SA', 'Dubai, AE', 'London, UK', 'New York, US']
+  const sampleServers = ['DC01', 'DC02', 'APP-SRV-01', 'FILE-SRV-01', 'SQL-SRV-01', 'WEB-SRV-01', 'ERP-SRV-01']
+  const eventValues: (typeof schema.identityEvents.$inferInsert)[] = []
+
+  // Login successes
+  for (let i = 0; i < 15; i++) {
+    const identity = allIdentities[randomInt(0, allIdentities.length - 1)]
+    eventValues.push({
+      eventType: 'login_success',
+      source: randomItem(['azure_sign_in', 'ad_event_log']),
+      identityId: identity.id,
+      parsedFields: { ipAddress: randomItem(sampleIps), location: randomItem(sampleLocations.slice(0, 2)), userAgent: 'Windows 10/Edge', result: 'success', targetResource: randomItem(sampleServers) },
+      eventTimestamp: daysAgo(randomInt(0, 7)),
+      orgId: org.id,
+    })
+  }
+
+  // Login failures
+  for (let i = 0; i < 10; i++) {
+    const identity = allIdentities[randomInt(0, allIdentities.length - 1)]
+    eventValues.push({
+      eventType: 'login_failure',
+      source: randomItem(['azure_sign_in', 'ad_event_log']),
+      identityId: identity.id,
+      parsedFields: { ipAddress: randomItem(sampleIps), location: randomItem(sampleLocations), result: 'failure', reason: 'invalid_password' },
+      eventTimestamp: daysAgo(randomInt(0, 3)),
+      orgId: org.id,
+    })
+  }
+
+  // MFA prompts
+  for (let i = 0; i < 8; i++) {
+    const identity = allIdentities[randomInt(0, humanIds.length - 1)]
+    const isSuccess = i < 5
+    eventValues.push({
+      eventType: isSuccess ? 'mfa_success' : 'mfa_prompt',
+      source: 'azure_sign_in',
+      identityId: identity.id,
+      parsedFields: { ipAddress: randomItem(sampleIps), mfaMethod: randomItem(['push', 'totp', 'phone']), result: isSuccess ? 'success' : 'pending' },
+      eventTimestamp: daysAgo(randomInt(0, 5)),
+      orgId: org.id,
+    })
+  }
+
+  // Group changes
+  for (let i = 0; i < 5; i++) {
+    const identity = allIdentities[randomInt(0, allIdentities.length - 1)]
+    eventValues.push({
+      eventType: randomItem(['group_add', 'group_remove']),
+      source: 'ad_event_log',
+      identityId: identity.id,
+      parsedFields: { targetResource: randomItem(['Domain Admins', 'Server Operators', 'Backup Operators', 'IT-Staff', 'Finance-Users']), result: 'success' },
+      eventTimestamp: daysAgo(randomInt(0, 14)),
+      orgId: org.id,
+    })
+  }
+
+  // Password changes
+  for (let i = 0; i < 5; i++) {
+    const identity = allIdentities[randomInt(0, allIdentities.length - 1)]
+    eventValues.push({
+      eventType: randomItem(['password_change', 'password_reset']),
+      source: 'ad_event_log',
+      identityId: identity.id,
+      parsedFields: { ipAddress: randomItem(sampleIps), result: 'success' },
+      eventTimestamp: daysAgo(randomInt(0, 30)),
+      orgId: org.id,
+    })
+  }
+
+  // Session events
+  for (let i = 0; i < 7; i++) {
+    const identity = allIdentities[randomInt(0, allIdentities.length - 1)]
+    eventValues.push({
+      eventType: randomItem(['session_start', 'session_end']),
+      source: 'azure_sign_in',
+      identityId: identity.id,
+      parsedFields: { ipAddress: randomItem(sampleIps), location: randomItem(sampleLocations.slice(0, 2)), sessionId: `sess-${randomInt(1000, 9999)}`, targetResource: randomItem(sampleServers) },
+      eventTimestamp: daysAgo(randomInt(0, 5)),
+      orgId: org.id,
+    })
+  }
+
+  await db.insert(schema.identityEvents).values(eventValues)
+  console.log(`Created ${eventValues.length} identity events`)
+
+  // 19. Identity Threats (8 sample threats)
+  const threatIdentities = allIdentities.slice(0, 20)
+  const threatValues: (typeof schema.identityThreats.$inferInsert)[] = [
+    {
+      threatType: 'dcsync',
+      severity: 'critical',
+      status: 'active',
+      identityId: threatIdentities[0].id,
+      killChainPhase: 'credential_access',
+      evidence: { eventIds: [], summary: 'Non-DC identity performing directory replication requests' },
+      sourceIp: '10.0.1.15',
+      mitreTechniqueIds: ['T1003.006'],
+      mitreTechniqueName: 'DCSync',
+      confidence: 95,
+      firstSeenAt: daysAgo(1),
+      lastSeenAt: daysAgo(0),
+      orgId: org.id,
+    },
+    {
+      threatType: 'golden_ticket',
+      severity: 'critical',
+      status: 'investigating',
+      identityId: threatIdentities[1].id,
+      killChainPhase: 'persistence',
+      evidence: { eventIds: [], summary: 'Kerberos TGT with 72-hour lifetime detected' },
+      sourceIp: '10.0.2.30',
+      mitreTechniqueIds: ['T1558.001'],
+      mitreTechniqueName: 'Golden Ticket',
+      confidence: 80,
+      firstSeenAt: daysAgo(2),
+      lastSeenAt: daysAgo(0),
+      orgId: org.id,
+    },
+    {
+      threatType: 'password_spray',
+      severity: 'high',
+      status: 'active',
+      identityId: threatIdentities[2].id,
+      killChainPhase: 'credential_access',
+      evidence: { eventIds: [], summary: '12 accounts targeted from IP 85.120.44.22 in 8 minutes' },
+      sourceIp: '85.120.44.22',
+      sourceLocation: 'Unknown',
+      mitreTechniqueIds: ['T1110.003'],
+      mitreTechniqueName: 'Password Spraying',
+      confidence: 88,
+      firstSeenAt: daysAgo(0),
+      lastSeenAt: daysAgo(0),
+      orgId: org.id,
+    },
+    {
+      threatType: 'mfa_fatigue',
+      severity: 'high',
+      status: 'active',
+      identityId: threatIdentities[3].id,
+      killChainPhase: 'credential_access',
+      evidence: { eventIds: [], summary: '7 MFA push prompts with no approval in 4 minutes' },
+      sourceIp: '203.0.113.5',
+      mitreTechniqueIds: ['T1621'],
+      mitreTechniqueName: 'MFA Request Generation',
+      confidence: 82,
+      firstSeenAt: daysAgo(0),
+      lastSeenAt: daysAgo(0),
+      orgId: org.id,
+    },
+    {
+      threatType: 'privilege_escalation',
+      severity: 'high',
+      status: 'contained',
+      identityId: threatIdentities[5].id,
+      killChainPhase: 'privilege_escalation',
+      evidence: { eventIds: [], summary: 'Tier 2 identity added to Domain Admins group' },
+      targetResource: 'Domain Admins',
+      mitreTechniqueIds: ['T1098'],
+      mitreTechniqueName: 'Account Manipulation',
+      confidence: 90,
+      firstSeenAt: daysAgo(3),
+      lastSeenAt: daysAgo(2),
+      orgId: org.id,
+    },
+    {
+      threatType: 'lateral_movement',
+      severity: 'medium',
+      status: 'active',
+      identityId: threatIdentities[6].id,
+      killChainPhase: 'lateral_movement',
+      evidence: { eventIds: [], summary: 'Authentication to 8 different servers in 20 minutes' },
+      sourceIp: '10.0.1.15',
+      mitreTechniqueIds: ['T1021'],
+      mitreTechniqueName: 'Remote Services',
+      confidence: 70,
+      firstSeenAt: daysAgo(1),
+      lastSeenAt: daysAgo(0),
+      orgId: org.id,
+    },
+    {
+      threatType: 'impossible_travel',
+      severity: 'medium',
+      status: 'active',
+      identityId: threatIdentities[8].id,
+      killChainPhase: 'initial_access',
+      evidence: { eventIds: [], summary: 'Authentication from Riyadh and London within 30 minutes' },
+      sourceLocation: 'Riyadh, SA -> London, UK',
+      mitreTechniqueIds: ['T1078'],
+      mitreTechniqueName: 'Valid Accounts',
+      confidence: 75,
+      firstSeenAt: daysAgo(1),
+      lastSeenAt: daysAgo(0),
+      orgId: org.id,
+    },
+    {
+      threatType: 'service_account_abuse',
+      severity: 'low',
+      status: 'resolved',
+      identityId: nhiIds[0]?.id || threatIdentities[10].id,
+      killChainPhase: 'initial_access',
+      evidence: { eventIds: [], summary: 'Service account svc-erp-01 used for interactive login' },
+      sourceIp: '192.168.1.100',
+      mitreTechniqueIds: ['T1078.002'],
+      mitreTechniqueName: 'Valid Accounts: Domain Accounts',
+      confidence: 85,
+      firstSeenAt: daysAgo(7),
+      lastSeenAt: daysAgo(5),
+      resolvedAt: daysAgo(4),
+      orgId: org.id,
+    },
+  ]
+
+  await db.insert(schema.identityThreats).values(threatValues)
+  console.log(`Created ${threatValues.length} identity threats`)
+
+  // ── Phase N2+N4: Shadow Admins, Canaries, Peer Groups, Supply Chain ──
+
+  // Shadow Admins: 5 identities with T0 access but NOT in privileged groups
+  const shadowAdminIdentities = allIdentities
+    .filter(i => i.type === 'human' && i.adTier === 'tier_2')
+    .slice(0, 5)
+
+  const shadowAdminValues = shadowAdminIdentities.map((identity, idx) => ({
+    identityId: identity.id,
+    detectionMethod: ['acl_analysis', 'delegation_chain', 'nested_group', 'acl_analysis', 'gpo_rights'][idx],
+    detectionReasons: [
+      `Has GenericAll on domain root (CN=acmefs,DC=local) but is not a member of Domain Admins`,
+      `Identity classified as Tier 2 but holds Tier 0 permissions via ${['direct ACL', 'delegation', 'nested group chain', 'WriteDacl ACE', 'GPO link'][idx]}`,
+    ],
+    effectiveRights: [
+      ['GenericAll', 'WriteDacl', 'WriteOwner'][idx % 3],
+      ...(idx < 3 ? ['ResetPassword'] : []),
+    ],
+    equivalentToGroups: [
+      ['Domain Admins', 'Enterprise Admins'][idx % 2],
+    ],
+    riskScore: 80 + idx * 4,
+    status: idx < 3 ? 'open' : idx === 3 ? 'confirmed' : 'remediated',
+    orgId: org.id,
+  }))
+
+  if (shadowAdminValues.length > 0) {
+    await db.insert(schema.shadowAdmins).values(shadowAdminValues as any)
+    console.log(`Created ${shadowAdminValues.length} shadow admins`)
+  }
+
+  // Canary Identities: 3 canaries with 5 triggers
+  const canaryDefs = [
+    { type: 'fake_admin' as const, name: 'svc-backup-admin-01', desc: 'Fake backup admin account to detect lateral movement', placement: 'OU=ServiceAccounts,DC=acmefs,DC=local' },
+    { type: 'fake_service' as const, name: 'svc-sqlreport-agent', desc: 'Fake SQL reporting service account', placement: 'CN=Services,OU=T1,DC=acmefs,DC=local' },
+    { type: 'fake_api_key' as const, name: 'apikey-vault-legacy', desc: 'Fake API key planted in decommissioned config file', placement: '/opt/legacy/config.yaml' },
+  ]
+
+  const canaryIdentityRecords: { id: string }[] = []
+  for (const c of canaryDefs) {
+    const [cIdentity] = await db.insert(schema.identities).values({
+      displayName: c.name,
+      type: 'non_human',
+      subType: c.type === 'fake_api_key' ? 'api_key' : 'service_account',
+      status: 'active',
+      adTier: c.type === 'fake_admin' ? 'tier_0' : 'tier_2',
+      riskScore: 0,
+      sourceSystem: 'manual',
+      sourceId: `CANARY-${c.name}`,
+      samAccountName: c.name,
+      orgId: org.id,
+    }).returning()
+    canaryIdentityRecords.push(cIdentity)
+  }
+
+  const canaryRecords = await db.insert(schema.canaryIdentities).values(
+    canaryDefs.map((c, idx) => ({
+      identityId: canaryIdentityRecords[idx].id,
+      canaryType: c.type,
+      description: c.desc,
+      placementLocation: c.placement,
+      enabled: true,
+      triggerCount: idx === 0 ? 3 : idx === 1 ? 2 : 0,
+      lastTriggeredAt: idx < 2 ? daysAgo(idx === 0 ? 1 : 5) : null,
+      lastTriggeredSourceIp: idx < 2 ? '10.0.1.' + randomInt(100, 200) : null,
+      orgId: org.id,
+    }))
+  ).returning()
+
+  // Canary Triggers: 5 total
+  const triggerValues = [
+    { canaryId: canaryRecords[0].id, eventType: 'NTLM authentication', sourceIp: '10.0.1.142', sourceHostname: 'WS-ATTACKER-01', triggeredAt: daysAgo(1), orgId: org.id },
+    { canaryId: canaryRecords[0].id, eventType: 'Kerberos TGT request', sourceIp: '10.0.1.142', sourceHostname: 'WS-ATTACKER-01', triggeredAt: daysAgo(1), orgId: org.id },
+    { canaryId: canaryRecords[0].id, eventType: 'LDAP bind attempt', sourceIp: '10.0.1.155', sourceHostname: 'SRV-COMPROMISED', triggeredAt: daysAgo(3), orgId: org.id },
+    { canaryId: canaryRecords[1].id, eventType: 'SQL authentication', sourceIp: '10.0.2.88', sourceHostname: null, triggeredAt: daysAgo(5), orgId: org.id },
+    { canaryId: canaryRecords[1].id, eventType: 'Service start attempt', sourceIp: '10.0.2.88', sourceHostname: 'SRV-DB-01', triggeredAt: daysAgo(5), orgId: org.id },
+  ]
+  await db.insert(schema.canaryTriggers).values(triggerValues)
+  console.log(`Created ${canaryRecords.length} canaries with ${triggerValues.length} triggers`)
+
+  // Peer Groups: 5 groups with stats
+  const peerGroupDefs = [
+    { dept: 'Information Technology', tier: 'tier_2' as const, sub: 'employee' as const, members: 25, median: 8, avg: 9.2, stddev: 3.1 },
+    { dept: 'Finance', tier: 'tier_2' as const, sub: 'employee' as const, members: 18, median: 5, avg: 5.8, stddev: 2.0 },
+    { dept: 'Security Operations', tier: 'tier_1' as const, sub: 'employee' as const, members: 8, median: 12, avg: 13.5, stddev: 4.2 },
+    { dept: 'Engineering', tier: 'tier_2' as const, sub: 'contractor' as const, members: 12, median: 4, avg: 4.5, stddev: 1.8 },
+    { dept: 'Operations', tier: 'tier_2' as const, sub: 'employee' as const, members: 15, median: 6, avg: 6.7, stddev: 2.5 },
+  ]
+
+  const peerGroupRecords = await db.insert(schema.peerGroups).values(
+    peerGroupDefs.map(pg => ({
+      name: `${pg.dept} / ${pg.tier} / ${pg.sub}`,
+      department: pg.dept,
+      adTier: pg.tier,
+      subType: pg.sub,
+      memberCount: pg.members,
+      medianEntitlementCount: pg.median,
+      avgEntitlementCount: pg.avg,
+      stddevEntitlementCount: pg.stddev,
+      commonEntitlements: [
+        { permissionName: 'Reader', percentage: 95 },
+        { permissionName: 'Basic User', percentage: 88 },
+      ],
+      orgId: org.id,
+    }))
+  ).returning()
+  console.log(`Created ${peerGroupRecords.length} peer groups`)
+
+  // Peer Anomalies: 8 anomalies
+  const anomalyCandidates = allIdentities.filter(i => i.type === 'human' && i.status === 'active').slice(20, 28)
+  const peerAnomalyValues = anomalyCandidates.map((identity, idx) => ({
+    identityId: identity.id,
+    peerGroupId: peerGroupRecords[idx % peerGroupRecords.length].id,
+    anomalyType: idx < 5 ? 'excess_entitlements' : 'unique_entitlements',
+    entitlementCount: 15 + idx * 3,
+    peerMedian: peerGroupDefs[idx % peerGroupDefs.length].median,
+    deviationScore: 2.5 + idx * 0.4,
+    excessEntitlements: [
+      { permissionName: 'Server Operator', tier: 'tier_1', peersWithSame: 0 },
+      { permissionName: 'Backup Operator', tier: 'tier_1', peersWithSame: 1 },
+    ],
+    uniqueEntitlements: idx >= 5 ? [
+      { permissionName: 'Domain Admin', tier: 'tier_0' },
+    ] : [],
+    status: idx < 6 ? 'open' : 'reviewed',
+    orgId: org.id,
+  }))
+
+  if (peerAnomalyValues.length > 0) {
+    await db.insert(schema.peerAnomalies).values(peerAnomalyValues)
+    console.log(`Created ${peerAnomalyValues.length} peer anomalies`)
+  }
+
+  // Supply Chain: Assign specific NHI ownership for 10 humans owning 2-5 NHIs each
+  const supplyChainOwners = allIdentities
+    .filter(i => i.type === 'human' && i.status === 'active' && i.adTier !== 'tier_2')
+    .slice(0, 10)
+  const availableNhis = allIdentities.filter(i => i.type === 'non_human' && i.status === 'active')
+
+  let nhiIdx = 0
+  for (const owner of supplyChainOwners) {
+    const nhiCount = randomInt(2, 5)
+    for (let j = 0; j < nhiCount && nhiIdx < availableNhis.length; j++) {
+      await db.update(schema.identities)
+        .set({ ownerIdentityId: owner.id })
+        .where(eq(schema.identities.id, availableNhis[nhiIdx].id))
+      nhiIdx++
+    }
+  }
+  console.log(`Assigned NHI ownership for ${supplyChainOwners.length} supply chain owners`)
+
+  // Chat Sessions: 2 sample sessions with different query types
+  const [adminUser] = await db.select().from(schema.users).where(eq(schema.users.email, 'admin@acmefs.sa')).limit(1)
+  if (adminUser) {
+    await db.insert(schema.chatSessions).values([
+      {
+        userId: adminUser.id,
+        orgId: org.id,
+        title: 'Who has Domain Admin access?',
+        messages: [
+          { role: 'user', content: 'Who has Domain Admin access?', timestamp: daysAgo(2).toISOString() },
+          { role: 'assistant', content: 'I found 4 identities with Domain Admin access. The highest risk is admin-jdoe with a risk score of 78 and a tier violation.', timestamp: daysAgo(2).toISOString(), metadata: { suggestedActions: ['View details', 'Generate remediation plan'] } },
+          { role: 'user', content: 'Which of these have tier violations?', timestamp: daysAgo(2).toISOString() },
+          { role: 'assistant', content: '2 out of 4 Domain Admin holders have tier violations: admin-jdoe (T2 accessing T0) and svc-backup (T1 accessing T0).', timestamp: daysAgo(2).toISOString(), metadata: { suggestedActions: ['Revoke cross-tier access', 'Update tier classification'] } },
+        ],
+      },
+      {
+        userId: adminUser.id,
+        orgId: org.id,
+        title: 'How many orphaned service accounts?',
+        messages: [
+          { role: 'user', content: 'How many orphaned service accounts do we have?', timestamp: daysAgo(1).toISOString() },
+          { role: 'assistant', content: 'There are 12 orphaned non-human identities without an assigned owner. 3 of these have Tier 0 access, making them critical risks.', timestamp: daysAgo(1).toISOString(), metadata: { suggestedActions: ['Assign owners', 'Disable orphaned accounts'] } },
+          { role: 'user', content: 'What is the risk if we disable them?', timestamp: daysAgo(1).toISOString() },
+          { role: 'assistant', content: 'Disabling orphaned NHIs would reduce your overall risk score by approximately 8%. However, 2 service accounts are actively authenticating, so disabling them may impact dependent services. I recommend reviewing their activity logs first.', timestamp: daysAgo(1).toISOString() },
+        ],
+      },
+    ])
+    console.log('Created 2 sample chat sessions')
+  }
 
   console.log('\nSeed complete!')
   console.log('Login: admin@acmefs.sa / admin123')

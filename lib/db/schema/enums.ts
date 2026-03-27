@@ -106,3 +106,24 @@ export const notificationSeverityEnum = pgEnum('notification_severity', [
 
 // RBAC
 export const appRoleEnum = pgEnum('app_role', ['viewer', 'analyst', 'iam_admin', 'ciso', 'admin'])
+
+// Threat detection enums (Phase N1)
+export const threatTypeEnum = pgEnum('threat_type', [
+  'credential_stuffing', 'password_spray', 'kerberoasting', 'asrep_roasting',
+  'dcsync', 'golden_ticket', 'lateral_movement', 'privilege_escalation',
+  'token_replay', 'oauth_consent_abuse', 'impossible_travel', 'brute_force',
+  'mfa_fatigue', 'service_account_abuse', 'insider_threat',
+])
+
+export const killChainPhaseEnum = pgEnum('kill_chain_phase', [
+  'reconnaissance', 'initial_access', 'credential_access', 'privilege_escalation',
+  'lateral_movement', 'persistence', 'exfiltration', 'impact',
+])
+
+export const threatStatusEnum = pgEnum('threat_status', [
+  'active', 'investigating', 'contained', 'resolved', 'false_positive',
+])
+
+export const canaryTypeEnum = pgEnum('canary_type', [
+  'fake_admin', 'fake_service', 'fake_gmsa', 'fake_vpn', 'fake_api_key',
+])

@@ -33,6 +33,9 @@ export interface OverviewMetrics {
     syncStatus: string
     lastSyncAt: string | null
   }>
+  activeThreats: number
+  attackPathsCount: number
+  shadowAdminCount: number
 }
 
 export function useOverviewMetrics() {
