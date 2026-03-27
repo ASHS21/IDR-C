@@ -654,9 +654,31 @@ async function seed() {
     { name: 'CyberArk PAM', type: 'cyberark' as const,
       syncStatus: 'connected' as const, lastSyncAt: daysAgo(0),
       lastSyncRecordCount: 45, syncFrequencyMinutes: 240 },
+    { name: 'ServiceNow ITSM', type: 'servicenow' as const,
+      syncStatus: 'disconnected' as const, lastSyncAt: null,
+      lastSyncRecordCount: 0, syncFrequencyMinutes: 360 },
+    // BeyondTrust and DigiCert — enum values added by separate migration
+    { name: 'BeyondTrust PAM', type: 'beyondtrust' as any,
+      syncStatus: 'disconnected' as const, lastSyncAt: null,
+      lastSyncRecordCount: 0, syncFrequencyMinutes: 240 },
+    { name: 'DigiCert CertCentral', type: 'digicert' as any,
+      syncStatus: 'disconnected' as const, lastSyncAt: null,
+      lastSyncRecordCount: 0, syncFrequencyMinutes: 360 },
+    { name: 'Microsoft Defender for Identity', type: 'microsoft_defender' as any,
+      syncStatus: 'disconnected' as const, lastSyncAt: null,
+      lastSyncRecordCount: 0, syncFrequencyMinutes: 60 },
+    { name: 'SAP GRC Access Control', type: 'sap_grc' as any,
+      syncStatus: 'disconnected' as const, lastSyncAt: null,
+      lastSyncRecordCount: 0, syncFrequencyMinutes: 360 },
+    { name: 'HashiCorp Vault', type: 'hashicorp_vault' as any,
+      syncStatus: 'disconnected' as const, lastSyncAt: null,
+      lastSyncRecordCount: 0, syncFrequencyMinutes: 240 },
+    { name: 'Splunk SIEM', type: 'splunk' as any,
+      syncStatus: 'disconnected' as const, lastSyncAt: null,
+      lastSyncRecordCount: 0, syncFrequencyMinutes: 60 },
   ].map(i => ({ ...i, config: {}, orgId: org.id }))
   await db.insert(schema.integrationSources).values(integrationValues)
-  console.log('Created 5 integration sources')
+  console.log('Created 12 integration sources')
 
   // 12. Sample action log entries
   const sampleActor = allIdentities.find(i => i.adTier === 'tier_0' && i.type === 'human') || allIdentities[0]

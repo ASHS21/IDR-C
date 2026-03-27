@@ -9,6 +9,13 @@ export type ConnectorType =
   | 'sailpoint_iiq'
   | 'broadcom_sso'
   | 'broadcom_pam'
+  | 'servicenow'
+  | 'microsoft_defender'
+  | 'sap_grc'
+  | 'hashicorp_vault'
+  | 'splunk'
+  | 'beyondtrust'
+  | 'digicert'
 
 export interface ConnectorConfig {
   type: ConnectorType

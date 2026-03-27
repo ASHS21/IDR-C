@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { Sidebar } from '@/components/dashboard/sidebar'
 import { Header } from '@/components/dashboard/header'
 import { CommandPalette } from '@/components/dashboard/command-palette'
+import { QuickStartChecklist } from '@/components/onboarding/quick-start-checklist'
 
 const isDemoMode = process.env.NEXT_PUBLIC_DEMO_MODE === 'true'
 
@@ -29,6 +30,7 @@ export default function DashboardLayout({
             </div>
           </div>
         )}
+        <QuickStartChecklist />
         <main className="flex-1 p-4 lg:p-6 max-w-[1400px]">
           {children}
         </main>

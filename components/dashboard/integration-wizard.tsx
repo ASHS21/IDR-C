@@ -8,7 +8,7 @@ interface IntegrationWizardProps {
   onCreated: () => void
 }
 
-type IntegrationType = 'active_directory' | 'azure_ad' | 'okta' | 'csv' | 'sailpoint_iiq' | 'broadcom_sso' | 'broadcom_pam'
+type IntegrationType = 'active_directory' | 'azure_ad' | 'okta' | 'csv' | 'sailpoint_iiq' | 'broadcom_sso' | 'broadcom_pam' | 'servicenow'
 
 interface TypeOption {
   type: IntegrationType
@@ -75,6 +75,16 @@ const INTEGRATION_TYPES: TypeOption[] = [
     icon: (
       <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
         <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 5.25a3 3 0 013 3m3 0a6 6 0 01-7.029 5.912c-.563-.097-1.159.026-1.563.43L10.5 17.25H8.25v2.25H6v2.25H2.25v-2.818c0-.597.237-1.17.659-1.591l6.499-6.499c.404-.404.527-1 .43-1.563A6 6 0 1121.75 8.25z" />
+      </svg>
+    ),
+  },
+  {
+    type: 'servicenow',
+    label: 'ServiceNow',
+    description: 'Import users, groups, and roles from ServiceNow ITSM/ITOM',
+    icon: (
+      <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 6v.75m0 3v.75m0 3v.75m0 3V18m-9-5.25h5.25M7.5 15h3M3.375 5.25c-.621 0-1.125.504-1.125 1.125v3.026a2.999 2.999 0 010 5.198v3.026c0 .621.504 1.125 1.125 1.125h17.25c.621 0 1.125-.504 1.125-1.125v-3.026a2.999 2.999 0 010-5.198V6.375c0-.621-.504-1.125-1.125-1.125H3.375z" />
       </svg>
     ),
   },
@@ -346,6 +356,24 @@ export function IntegrationWizard({ isOpen, onClose, onCreated }: IntegrationWiz
                   <FormField label="Vault Name (optional)" field="vaultName" value={credentials.vaultName} onChange={handleFieldChange} placeholder="Leave empty for all vaults" />
                   <p className="text-[10px] text-[var(--text-tertiary)]">
                     Requires PAM API admin role. Pulls privileged credentials, vault memberships, and access policies.
+                  </p>
+                </>
+              )}
+
+              {selectedType === 'servicenow' && (
+                <>
+                  <FormField label="Instance URL" field="instanceUrl" value={credentials.instanceUrl} onChange={handleFieldChange} placeholder="https://your-company.service-now.com" />
+                  <FormField label="Username" field="username" value={credentials.username} onChange={handleFieldChange} placeholder="integration_user" />
+                  <FormField label="Password" field="password" value={credentials.password} onChange={handleFieldChange} type="password" />
+                  <div className="border-t border-[var(--border-default)] pt-3 mt-3">
+                    <p className="text-xs font-medium text-[var(--text-secondary)] mb-2">OAuth2 (Optional - overrides Basic Auth)</p>
+                    <div className="space-y-3">
+                      <FormField label="Client ID (optional)" field="clientId" value={credentials.clientId} onChange={handleFieldChange} placeholder="OAuth2 client ID" />
+                      <FormField label="Client Secret (optional)" field="clientSecret" value={credentials.clientSecret} onChange={handleFieldChange} type="password" />
+                    </div>
+                  </div>
+                  <p className="text-[10px] text-[var(--text-tertiary)]">
+                    Required ServiceNow roles: itil, personalize_choices, rest_api_explorer. OAuth2 is recommended for production.
                   </p>
                 </>
               )}

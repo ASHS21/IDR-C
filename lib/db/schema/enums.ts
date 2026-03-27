@@ -17,13 +17,17 @@ export const adTierEnum = pgEnum('ad_tier', ['tier_0', 'tier_1', 'tier_2', 'uncl
 // Source systems
 export const sourceSystemEnum = pgEnum('source_system', [
   'active_directory', 'azure_ad', 'okta', 'sailpoint', 'cyberark', 'manual',
-  'broadcom_sso', 'broadcom_pam', 'sailpoint_iiq',
+  'broadcom_sso', 'broadcom_pam', 'sailpoint_iiq', 'servicenow',
+  'microsoft_defender', 'sap_grc', 'hashicorp_vault', 'splunk',
+  'beyondtrust', 'digicert',
 ])
 
 // Account enums
 export const platformEnum = pgEnum('platform_type', [
   'ad', 'azure_ad', 'okta', 'sailpoint', 'cyberark', 'aws_iam', 'gcp_iam',
-  'broadcom_sso', 'broadcom_pam', 'sailpoint_iiq',
+  'broadcom_sso', 'broadcom_pam', 'sailpoint_iiq', 'servicenow',
+  'microsoft_defender', 'sap_grc', 'hashicorp_vault', 'splunk',
+  'beyondtrust', 'digicert',
 ])
 export const accountTypeEnum = pgEnum('account_type', [
   'standard', 'privileged', 'admin', 'service', 'shared', 'emergency',
@@ -75,7 +79,9 @@ export const violationStatusEnum = pgEnum('violation_status', [
 // Integration enums
 export const integrationTypeEnum = pgEnum('integration_type', [
   'active_directory', 'azure_ad', 'okta', 'sailpoint', 'cyberark',
-  'azure_logs', 'sso_provider', 'broadcom_sso', 'broadcom_pam', 'sailpoint_iiq',
+  'azure_logs', 'sso_provider', 'broadcom_sso', 'broadcom_pam', 'sailpoint_iiq', 'servicenow',
+  'microsoft_defender', 'sap_grc', 'hashicorp_vault', 'splunk',
+  'beyondtrust', 'digicert',
 ])
 export const syncStatusEnum = pgEnum('sync_status', [
   'connected', 'syncing', 'error', 'disconnected',

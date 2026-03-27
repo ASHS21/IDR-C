@@ -45,7 +45,7 @@
 	# -------------------------------------------------------------------------
 	reverse_proxy app:3000 {
 		# Health check
-		health_uri /api/auth/session
+		health_uri /api/health
 		health_interval 30s
 		health_timeout 10s
 
