@@ -2,12 +2,14 @@
 
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import {
   Shield, Building2, Plug, RefreshCw, Users,
   TreePine, Cloud, ShieldCheck, Compass, Upload,
   Check, ChevronRight, ChevronLeft, X, Plus, Loader2,
+  FileSpreadsheet, Database,
 } from 'lucide-react'
+import { CSVMappingPreview } from '@/components/onboarding/csv-mapping-preview'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 interface OrgData {
@@ -18,21 +20,22 @@ interface OrgData {
   country: string
 }
 
-interface IntegrationConfig {
-  type: string
-  name: string
-  config: Record<string, string>
-}
-
 interface TeamMember {
   email: string
   role: string
 }
 
-interface SyncProgress {
+interface SyncProgressItem {
   stage: string
   count: number
   done: boolean
+}
+
+interface CSVDetectionResult {
+  mapping: Record<string, string>
+  formatDetection: { dateFormat: string; csvType: string }
+  confidence: Record<string, number>
+  unmapped: string[]
 }
 
 // ─── Constants ───────────────────────────────────────────────────────────────
@@ -98,6 +101,33 @@ const ROLES = [
   { value: 'ciso', label: 'CISO' },
 ]
 
+// ─── CSV Helpers ─────────────────────────────────────────────────────────────
+
+function parseCsvLine(line: string): string[] {
+  const values: string[] = []
+  let current = ''
+  let inQuotes = false
+
+  for (let i = 0; i < line.length; i++) {
+    const ch = line[i]
+    if (ch === '"') {
+      if (inQuotes && line[i + 1] === '"') {
+        current += '"'
+        i++
+      } else {
+        inQuotes = !inQuotes
+      }
+    } else if (ch === ',' && !inQuotes) {
+      values.push(current.trim())
+      current = ''
+    } else {
+      current += ch
+    }
+  }
+  values.push(current.trim())
+  return values
+}
+
 // ─── Component ───────────────────────────────────────────────────────────────
 export default function OnboardingPage() {
   const { data: session, status, update: updateSession } = useSession()
@@ -122,10 +152,22 @@ export default function OnboardingPage() {
   const [integrationSaved, setIntegrationSaved] = useState(false)
   const [skippedIntegration, setSkippedIntegration] = useState(false)
 
+  // Step 2: CSV Import state
+  const [csvFileContent, setCsvFileContent] = useState<string | null>(null)
+  const [csvHeaders, setCsvHeaders] = useState<string[]>([])
+  const [csvSampleRows, setCsvSampleRows] = useState<string[][]>([])
+  const [csvDetection, setCsvDetection] = useState<CSVDetectionResult | null>(null)
+  const [csvDetecting, setCsvDetecting] = useState(false)
+  const [csvMappingConfirmed, setCsvMappingConfirmed] = useState(false)
+  const [csvImportMode, setCsvImportMode] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
   // Step 3: Sync
-  const [syncProgress, setSyncProgress] = useState<SyncProgress[]>([])
+  const [syncProgress, setSyncProgress] = useState<SyncProgressItem[]>([])
   const [syncComplete, setSyncComplete] = useState(false)
   const [syncResults, setSyncResults] = useState({ identities: 0, violations: 0, risks: 0 })
+  const [demoLoading, setDemoLoading] = useState(false)
+  const [integrationId, setIntegrationId] = useState<string | null>(null)
 
   // Step 4: Team
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([{ email: '', role: 'viewer' }])
@@ -221,6 +263,10 @@ export default function OnboardingPage() {
         return
       }
 
+      const result = await res.json()
+      if (result.integrationId) {
+        setIntegrationId(result.integrationId)
+      }
       setIntegrationSaved(true)
       setStep(3)
     } catch {
@@ -230,59 +276,213 @@ export default function OnboardingPage() {
     }
   }
 
-  const simulateSync = useCallback(() => {
-    if (skippedIntegration) {
-      setSyncComplete(true)
+  // ─── CSV Import Handlers ────────────────────────────────────────────────
+
+  const handleCsvFileDrop = async (file: File) => {
+    setError('')
+    const text = await file.text()
+    const lines = text.trim().split(/\r?\n/)
+    if (lines.length < 2) {
+      setError('CSV must have a header row and at least one data row.')
       return
     }
 
-    const stages = [
-      { stage: 'Importing identities...', count: 0, done: false },
-      { stage: 'Classifying tiers...', count: 0, done: false },
-      { stage: 'Detecting violations...', count: 0, done: false },
-      { stage: 'Scoring risk...', count: 0, done: false },
-    ]
+    const headers = parseCsvLine(lines[0])
+    const sampleRows: string[][] = []
+    for (let i = 1; i <= Math.min(3, lines.length - 1); i++) {
+      sampleRows.push(parseCsvLine(lines[i]))
+    }
 
-    setSyncProgress([stages[0]])
+    setCsvFileContent(text)
+    setCsvHeaders(headers)
+    setCsvSampleRows(sampleRows)
+    setCsvDetecting(true)
 
-    let currentStage = 0
-    const targetCounts = [247, 247, 18, 247]
-
-    const interval = setInterval(() => {
-      setSyncProgress(prev => {
-        const updated = [...prev]
-        const current = { ...updated[currentStage] }
-        current.count = Math.min(current.count + Math.floor(Math.random() * 30) + 10, targetCounts[currentStage])
-
-        if (current.count >= targetCounts[currentStage]) {
-          current.done = true
-          current.count = targetCounts[currentStage]
-          updated[currentStage] = current
-
-          currentStage++
-          if (currentStage < stages.length) {
-            updated.push({ ...stages[currentStage] })
-          } else {
-            clearInterval(interval)
-            setSyncComplete(true)
-            setSyncResults({ identities: 247, violations: 18, risks: 7 })
-          }
-        } else {
-          updated[currentStage] = current
-        }
-        return updated
+    // Call AI detection
+    try {
+      const res = await fetch('/api/import/csv-detect', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ headers, sampleRows }),
       })
-    }, 400)
 
-    return () => clearInterval(interval)
-  }, [skippedIntegration])
+      if (res.ok) {
+        const detection = await res.json()
+        setCsvDetection(detection)
+      } else {
+        setError('Column detection failed. You can map columns manually.')
+        setCsvDetection({
+          mapping: {},
+          formatDetection: { dateFormat: 'iso8601', csvType: 'generic' },
+          confidence: {},
+          unmapped: headers,
+        })
+      }
+    } catch {
+      setError('Column detection failed. You can map columns manually.')
+      setCsvDetection({
+        mapping: {},
+        formatDetection: { dateFormat: 'iso8601', csvType: 'generic' },
+        confidence: {},
+        unmapped: headers,
+      })
+    } finally {
+      setCsvDetecting(false)
+    }
+  }
+
+  const handleCsvMappingConfirm = async (mapping: Record<string, string>) => {
+    if (!csvFileContent) return
+    setError('')
+    setLoading(true)
+
+    try {
+      const res = await fetch('/api/import/csv', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          fileContent: csvFileContent,
+          mapping,
+          orgId: session.user.orgId,
+        }),
+      })
+
+      if (!res.ok) {
+        const data = await res.json()
+        setError(data.error || 'CSV import failed')
+        setLoading(false)
+        return
+      }
+
+      const result = await res.json()
+      setCsvMappingConfirmed(true)
+      setCsvImportMode(true)
+      setSyncComplete(true)
+      setSyncResults({
+        identities: result.report?.identitiesUpserted || 0,
+        violations: 0,
+        risks: 0,
+      })
+      setStep(3)
+    } catch {
+      setError('Import failed. Please try again.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleCsvReset = () => {
+    setCsvFileContent(null)
+    setCsvHeaders([])
+    setCsvSampleRows([])
+    setCsvDetection(null)
+    setCsvDetecting(false)
+  }
+
+  // ─── Demo Data Handler ─────────────────────────────────────────────────
+
+  const handleLoadDemoData = async () => {
+    setError('')
+    setDemoLoading(true)
+
+    try {
+      const res = await fetch('/api/import/demo', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      })
+
+      if (!res.ok) {
+        const data = await res.json()
+        setError(data.error || 'Failed to generate demo data')
+        setDemoLoading(false)
+        return
+      }
+
+      const result = await res.json()
+      setSyncComplete(true)
+      setSyncResults({
+        identities: result.summary?.identities || 50,
+        violations: result.summary?.violations || 10,
+        risks: 0,
+      })
+    } catch {
+      setError('Failed to generate demo data.')
+    } finally {
+      setDemoLoading(false)
+    }
+  }
+
+  // ─── Real Sync via SSE ──────────────────────────────────────────────────
+
+  const startRealSync = useCallback((intId: string) => {
+    const eventSource = new EventSource(`/api/sync/stream?integrationId=${intId}`)
+
+    const progressMap = new Map<string, SyncProgressItem>()
+
+    eventSource.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data)
+
+        if (data.phase === 'complete') {
+          eventSource.close()
+          setSyncComplete(true)
+          setSyncResults({
+            identities: data.summary?.identitiesUpserted || 0,
+            violations: data.summary?.entitlementsUpserted || 0,
+            risks: (data.summary?.errors?.length || 0),
+          })
+          return
+        }
+
+        if (data.phase === 'error') {
+          eventSource.close()
+          setError(data.error || 'Sync failed')
+          return
+        }
+
+        // Update progress
+        const existing = progressMap.get(data.phase)
+        const item: SyncProgressItem = {
+          stage: data.message || data.phase,
+          count: data.progress || 0,
+          done: false,
+        }
+        progressMap.set(data.phase, item)
+
+        // Convert to array for display
+        const items = Array.from(progressMap.values())
+        // Mark all but last as done
+        for (let i = 0; i < items.length - 1; i++) {
+          items[i].done = true
+        }
+        setSyncProgress([...items])
+      } catch {
+        // ignore parse errors
+      }
+    }
+
+    eventSource.onerror = () => {
+      eventSource.close()
+      // If not already complete, mark as done
+      setSyncComplete(prev => {
+        if (!prev) {
+          setError('Connection to sync stream lost.')
+        }
+        return prev
+      })
+    }
+
+    return () => {
+      eventSource.close()
+    }
+  }, [])
 
   useEffect(() => {
-    if (step === 3) {
-      const cleanup = simulateSync()
+    if (step === 3 && integrationId && !csvImportMode && !skippedIntegration) {
+      const cleanup = startRealSync(integrationId)
       return cleanup
     }
-  }, [step, simulateSync])
+  }, [step, integrationId, csvImportMode, skippedIntegration, startRealSync])
 
   const handleTeamInvite = async () => {
     const validMembers = teamMembers.filter(m => m.email.trim())
@@ -518,6 +718,7 @@ export default function OnboardingPage() {
                         onClick={() => {
                           setSelectedIntegrationType(int.type)
                           setIntegrationConfig({})
+                          handleCsvReset()
                         }}
                         className="p-5 rounded-[var(--radius-card)] border border-[var(--border-default)] bg-[var(--bg-primary)] text-left hover:border-[var(--color-info)] hover:shadow-md transition-all group"
                       >
@@ -548,7 +749,7 @@ export default function OnboardingPage() {
                       })()}
                     </div>
                     <button
-                      onClick={() => { setSelectedIntegrationType(null); setIntegrationConfig({}) }}
+                      onClick={() => { setSelectedIntegrationType(null); setIntegrationConfig({}); handleCsvReset() }}
                       className="text-caption text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
                     >
                       Change
@@ -556,10 +757,77 @@ export default function OnboardingPage() {
                   </div>
 
                   {selectedIntegrationType === 'csv_import' ? (
-                    <div className="text-center py-8 border-2 border-dashed border-[var(--border-default)] rounded-[var(--radius-card)]">
-                      <Upload size={32} className="mx-auto text-[var(--text-tertiary)] mb-3" />
-                      <p className="text-body text-[var(--text-secondary)]">CSV import will be available after setup</p>
-                      <p className="text-caption text-[var(--text-tertiary)] mt-1">You can import identities from Settings later</p>
+                    <div>
+                      {!csvFileContent ? (
+                        /* Drag & Drop Zone */
+                        <div
+                          className="py-10 border-2 border-dashed border-[var(--border-default)] rounded-[var(--radius-card)] hover:border-[var(--color-info)] transition-colors cursor-pointer"
+                          onDragOver={(e) => { e.preventDefault(); e.stopPropagation() }}
+                          onDrop={(e) => {
+                            e.preventDefault()
+                            e.stopPropagation()
+                            const file = e.dataTransfer.files[0]
+                            if (file && (file.name.endsWith('.csv') || file.type === 'text/csv')) {
+                              handleCsvFileDrop(file)
+                            } else {
+                              setError('Please upload a CSV file.')
+                            }
+                          }}
+                          onClick={() => fileInputRef.current?.click()}
+                        >
+                          <input
+                            ref={fileInputRef}
+                            type="file"
+                            accept=".csv,text/csv"
+                            className="hidden"
+                            onChange={(e) => {
+                              const file = e.target.files?.[0]
+                              if (file) handleCsvFileDrop(file)
+                            }}
+                          />
+                          <div className="text-center">
+                            <Upload size={32} className="mx-auto text-[var(--text-tertiary)] mb-3" />
+                            <p className="text-body text-[var(--text-secondary)]">
+                              Drag &amp; drop a CSV file or click to browse
+                            </p>
+                            <p className="text-caption text-[var(--text-tertiary)] mt-1">
+                              Supports AD PowerShell exports, Azure AD, SailPoint, Okta, and generic CSV
+                            </p>
+                          </div>
+                        </div>
+                      ) : csvDetecting ? (
+                        /* Detection in progress */
+                        <div className="py-10 text-center">
+                          <Loader2 size={32} className="mx-auto text-[var(--color-info)] animate-spin mb-3" />
+                          <p className="text-body text-[var(--text-primary)] font-medium">
+                            Detecting column format...
+                          </p>
+                          <p className="text-caption text-[var(--text-tertiary)] mt-1">
+                            AI is analyzing your CSV headers and sample data
+                          </p>
+                        </div>
+                      ) : csvDetection ? (
+                        /* Show mapping preview */
+                        <div>
+                          <div className="flex items-center gap-2 mb-4">
+                            <FileSpreadsheet size={16} className="text-[var(--color-info)]" />
+                            <span className="text-body font-medium text-[var(--text-primary)]">
+                              Column mapping detected
+                            </span>
+                          </div>
+                          <CSVMappingPreview
+                            headers={csvHeaders}
+                            sampleRows={csvSampleRows}
+                            mapping={csvDetection.mapping}
+                            confidence={csvDetection.confidence}
+                            formatDetection={csvDetection.formatDetection}
+                            unmapped={csvDetection.unmapped}
+                            onConfirm={handleCsvMappingConfirm}
+                            onReset={handleCsvReset}
+                            loading={loading}
+                          />
+                        </div>
+                      ) : null}
                     </div>
                   ) : (
                     <div className="space-y-4">
@@ -588,7 +856,7 @@ export default function OnboardingPage() {
                         className="inline-flex items-center gap-2 px-5 py-2 bg-[var(--color-info)] text-white rounded-[var(--radius-button)] text-body font-medium hover:opacity-90 disabled:opacity-50 transition-opacity"
                       >
                         {loading ? <Loader2 size={16} className="animate-spin" /> : null}
-                        Save & Continue
+                        Save &amp; Continue
                       </button>
                     </div>
                   )}
@@ -619,23 +887,59 @@ export default function OnboardingPage() {
           {step === 3 && (
             <div className="animate-fade-in">
               <h2 className="text-title text-[var(--text-primary)] mb-1">
-                {skippedIntegration ? 'No source connected' : 'Initial sync'}
+                {skippedIntegration ? 'Get started quickly' : csvImportMode ? 'Import complete' : 'Initial sync'}
               </h2>
               <p className="text-body text-[var(--text-secondary)] mb-8">
                 {skippedIntegration
-                  ? 'You can connect identity sources later from Settings > Integrations.'
-                  : 'We are importing and analyzing your identity data.'
+                  ? 'Try demo data to explore the platform, or connect identity sources later.'
+                  : csvImportMode
+                    ? 'Your CSV data has been imported successfully.'
+                    : 'We are importing and analyzing your identity data.'
                 }
               </p>
 
               {skippedIntegration ? (
-                <div className="rounded-[var(--radius-card)] border border-[var(--border-default)] bg-[var(--bg-primary)] p-8 text-center">
-                  <div className="w-12 h-12 rounded-full bg-[var(--color-info-bg)] flex items-center justify-center mx-auto mb-4">
-                    <Plug size={24} className="text-[var(--color-info)]" />
+                <div className="rounded-[var(--radius-card)] border border-[var(--border-default)] bg-[var(--bg-primary)] p-8">
+                  <div className="flex flex-col items-center text-center mb-6">
+                    <div className="w-12 h-12 rounded-full bg-[var(--color-info-bg)] flex items-center justify-center mx-auto mb-4">
+                      <Database size={24} className="text-[var(--color-info)]" />
+                    </div>
+                    {syncComplete ? (
+                      <>
+                        <p className="text-body text-[var(--color-low)] font-medium mb-2">Demo data loaded!</p>
+                        <p className="text-body text-[var(--text-secondary)]">
+                          We created <strong className="text-[var(--text-primary)]">{syncResults.identities} identities</strong>,{' '}
+                          <strong className="text-[var(--color-high)]">{syncResults.violations} violations</strong> for you to explore.
+                        </p>
+                      </>
+                    ) : (
+                      <>
+                        <p className="text-body text-[var(--text-primary)] font-medium mb-2">Try with demo data</p>
+                        <p className="text-caption text-[var(--text-secondary)] mb-4">
+                          Generate 50 realistic identities with groups, entitlements, and violations so you can explore the platform.
+                        </p>
+                        <button
+                          onClick={handleLoadDemoData}
+                          disabled={demoLoading}
+                          className="inline-flex items-center gap-2 px-5 py-2 bg-[var(--color-info)] text-white rounded-[var(--radius-button)] text-body font-medium hover:opacity-90 disabled:opacity-50 transition-opacity"
+                        >
+                          {demoLoading ? <Loader2 size={16} className="animate-spin" /> : <Database size={16} />}
+                          Try with Demo Data
+                        </button>
+                      </>
+                    )}
                   </div>
-                  <p className="text-body text-[var(--text-primary)] font-medium">No worries!</p>
-                  <p className="text-caption text-[var(--text-secondary)] mt-2">
-                    You can connect sources later in Settings. We will generate sample data so you can explore the platform.
+                </div>
+              ) : csvImportMode && syncComplete ? (
+                <div className="rounded-[var(--radius-card)] border border-[var(--border-default)] bg-[var(--bg-primary)] p-6">
+                  <div className="flex items-center gap-2 mb-3">
+                    <div className="w-6 h-6 rounded-full bg-[var(--color-low)] flex items-center justify-center">
+                      <Check size={12} className="text-white" />
+                    </div>
+                    <span className="text-body font-medium text-[var(--color-low)]">Import complete!</span>
+                  </div>
+                  <p className="text-body text-[var(--text-secondary)]">
+                    Imported <strong className="text-[var(--text-primary)]">{syncResults.identities} identities</strong> from your CSV file.
                   </p>
                 </div>
               ) : (
@@ -658,6 +962,13 @@ export default function OnboardingPage() {
                     </div>
                   ))}
 
+                  {syncProgress.length === 0 && !syncComplete && (
+                    <div className="flex items-center gap-3">
+                      <Loader2 size={20} className="text-[var(--color-info)] animate-spin" />
+                      <span className="text-body text-[var(--text-primary)]">Connecting to source...</span>
+                    </div>
+                  )}
+
                   {syncComplete && (
                     <div className="mt-4 pt-4 border-t border-[var(--border-default)]">
                       <div className="flex items-center gap-2 mb-3">
@@ -668,8 +979,8 @@ export default function OnboardingPage() {
                       </div>
                       <p className="text-body text-[var(--text-secondary)]">
                         We found <strong className="text-[var(--text-primary)]">{syncResults.identities} identities</strong>,{' '}
-                        <strong className="text-[var(--color-high)]">{syncResults.violations} tier violations</strong>, and{' '}
-                        <strong className="text-[var(--color-critical)]">{syncResults.risks} critical risks</strong>.
+                        <strong className="text-[var(--color-high)]">{syncResults.violations} entitlements</strong>, and{' '}
+                        <strong className="text-[var(--color-critical)]">{syncResults.risks} errors</strong>.
                       </p>
                     </div>
                   )}

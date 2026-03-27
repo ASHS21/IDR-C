@@ -1,6 +1,7 @@
 'use client'
 
 import { useTranslations } from 'next-intl'
+import { useQuery } from '@tanstack/react-query'
 import { useOverviewMetrics } from '@/lib/hooks/use-metrics'
 import { MetricCard } from '@/components/ui/metric-card'
 import { RiskGauge } from '@/components/ui/risk-gauge'
@@ -11,8 +12,34 @@ import { IntegrationHealthStrip } from '@/components/dashboard/integration-healt
 import { CardSkeleton } from '@/components/ui/skeleton'
 import { getRiskLevel } from '@/lib/utils/constants'
 import Link from 'next/link'
-import { AlertTriangle, Shield, TrendingUp, Users, Crosshair, Route, UserX } from 'lucide-react'
+import { AlertTriangle, Shield, TrendingUp, Users, Crosshair, Route, UserX, Sparkles } from 'lucide-react'
 import { ExportPdfButton } from '@/components/dashboard/export-pdf-button'
+
+function LowQualityBanner() {
+  const { data } = useQuery<{ completenessDistribution: { low: number; unscored: number } }>({
+    queryKey: ['data-quality', 'stats'],
+    queryFn: async () => {
+      const res = await fetch('/api/data-quality/stats')
+      if (!res.ok) throw new Error('Failed')
+      return res.json()
+    },
+    staleTime: 60_000,
+  })
+  const count = (data?.completenessDistribution?.low ?? 0) + (data?.completenessDistribution?.unscored ?? 0)
+  if (!count) return null
+  return (
+    <Link
+      href="/dashboard/data-quality"
+      className="flex items-center gap-3 rounded-[var(--radius-card)] border border-[var(--color-medium)] bg-[var(--color-medium-bg)] p-3 hover:opacity-90 transition-opacity"
+    >
+      <Sparkles size={16} style={{ color: 'var(--color-medium)' }} />
+      <p className="text-caption text-[var(--text-primary)]">
+        <span className="font-semibold">{count}</span> identities have low data quality.{' '}
+        <span className="text-[var(--color-info)] font-medium">Improve →</span>
+      </p>
+    </Link>
+  )
+}
 
 export default function DashboardOverview() {
   const { data, isLoading, error } = useOverviewMetrics()
@@ -65,6 +92,9 @@ export default function DashboardOverview() {
         <MetricCard label={t('tierViolations')} value={data.tierViolations} severity={data.tierViolations > 0 ? 'high' : undefined} />
         <MetricCard label={t('criticalRisk')} value={data.riskDistribution?.critical ?? 0} severity={(data.riskDistribution?.critical ?? 0) > 0 ? 'critical' : undefined} />
       </div>
+
+      {/* Low Data Quality Banner */}
+      <LowQualityBanner />
 
       {/* Threat & Attack Surface Metrics */}
       {(data.activeThreats > 0 || data.attackPathsCount > 0 || data.shadowAdminCount > 0) && (

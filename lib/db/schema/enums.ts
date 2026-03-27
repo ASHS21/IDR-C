@@ -127,3 +127,7 @@ export const threatStatusEnum = pgEnum('threat_status', [
 export const canaryTypeEnum = pgEnum('canary_type', [
   'fake_admin', 'fake_service', 'fake_gmsa', 'fake_vpn', 'fake_api_key',
 ])
+
+// Data quality enums (Phase E2)
+export const matchMethodEnum = pgEnum('match_method', ['deterministic', 'fuzzy', 'ai', 'manual'])
+export const aliasStatusEnum = pgEnum('alias_status', ['pending_review', 'confirmed', 'rejected'])

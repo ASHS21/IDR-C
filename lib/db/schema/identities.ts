@@ -35,6 +35,7 @@ export const identities = pgTable('identities', {
   orgId: uuid('org_id').notNull().references(() => organizations.id),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  dataQuality: jsonb('data_quality'), // { score, completeness, freshness, accuracy, fields: { [name]: { filled, source, confidence, lastUpdated } } }
 }, (table) => [
   index('idx_identities_org_id').on(table.orgId),
   index('idx_identities_type').on(table.type),

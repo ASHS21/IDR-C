@@ -21,7 +21,8 @@
     "canaryIdentities": "Canary Identities",
     "supplyChain": "Supply Chain",
     "resultsHub": "Results Hub",
-    "gpoTracking": "GPO Tracking"
+    "gpoTracking": "GPO Tracking",
+    "dataQuality": "Data Quality"
   },
   "navSections": {
     "overview": "OVERVIEW",
@@ -708,5 +709,55 @@
       "unlinked": "GPO is not linked to any OU",
       "weakPerms": "Non-admin can modify GPO security"
     }
+  },
+  "dataQuality": {
+    "title": "Data Quality",
+    "resolve": "Resolve Duplicates",
+    "classify": "Auto-Classify",
+    "qualityScore": "Quality Score",
+    "completeness": "Completeness",
+    "freshness": "Freshness",
+    "accuracy": "Accuracy",
+    "fieldCoverage": "Field Coverage",
+    "aliasStatus": "Alias Status",
+    "pendingReview": "Pending Review",
+    "confirmed": "Confirmed",
+    "rejected": "Rejected",
+    "samePerson": "Same Person",
+    "differentPeople": "Different People",
+    "matchConfidence": "Match Confidence",
+    "matchMethod": "Match Method",
+    "deterministic": "Deterministic",
+    "fuzzy": "Fuzzy",
+    "aiMatched": "AI Matched",
+    "manual": "Manual",
+    "reviewQueue": "Review Queue",
+    "aiSuggestions": "AI Suggestions",
+    "runEnrichment": "Run Enrichment",
+    "autoClassify": "Auto-Classify",
+    "applyAll": "Apply All High Confidence",
+    "apply": "Apply",
+    "reject": "Reject",
+    "improveData": "Improve Data",
+    "unscored": "Unscored",
+    "highConfidence": "High confidence",
+    "estimated": "Estimated",
+    "lowConfidence": "Low confidence"
+  },
+  "import": {
+    "dragDrop": "Drag & drop a CSV file or click to browse",
+    "detecting": "Detecting column format...",
+    "detected": "Column mapping detected",
+    "sourceColumn": "Source Column",
+    "targetField": "Target Field",
+    "confidence": "Confidence",
+    "sampleValue": "Sample Value",
+    "unmapped": "Unmapped",
+    "confirmMapping": "Confirm & Import",
+    "adjustMapping": "Adjust Mapping",
+    "formatDetected": "Detected format",
+    "demoMode": "DEMO MODE — Using synthetic data. Connect your environment for real insights.",
+    "connectNow": "Connect Now",
+    "tryDemo": "Try with Demo Data"
   }
 }

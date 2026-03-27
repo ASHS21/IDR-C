@@ -17,6 +17,7 @@ export interface IdentityListItem {
   email: string | null
   lastLogonAt: string | null
   createdAt: string
+  dataQuality: { score?: number; completeness?: number; freshness?: number; accuracy?: number; fields?: Record<string, any> } | null
 }
 
 export interface IdentityListResponse {

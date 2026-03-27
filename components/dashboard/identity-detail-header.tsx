@@ -142,6 +142,25 @@ export function IdentityDetailHeader({ data }: Props) {
                   TIER VIOLATION
                 </span>
               )}
+              {(() => {
+                const dq = (identity as any).dataQuality as { score?: number } | null
+                if (!dq?.score) return null
+                const score = dq.score
+                const bg = score > 80 ? '#dcfce7' : score > 50 ? '#fef3c7' : '#fee2e2'
+                const fg = score > 80 ? '#166534' : score > 50 ? '#92400e' : '#991b1b'
+                return (
+                  <>
+                    <span className="text-xs px-2.5 py-1 rounded-full font-medium" style={{ backgroundColor: bg, color: fg }}>
+                      Quality: {score}/100
+                    </span>
+                    {score < 60 && (
+                      <Link href="/dashboard/data-quality" className="text-xs text-blue-600 hover:underline">
+                        Improve Data
+                      </Link>
+                    )}
+                  </>
+                )
+              })()}
               <span className="text-xs px-2.5 py-1 rounded-full font-medium bg-slate-100 text-slate-600">
                 {identity.subType.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}
               </span>

@@ -276,6 +276,48 @@ async function seed() {
     }
   }
 
+  // 3b. Seed data quality scores
+  for (const identity of allIdentities) {
+    const hasEmail = !!identity.email
+    const hasDept = !!identity.department
+    const hasManager = !!identity.managerIdentityId
+    const hasOwner = !!identity.ownerIdentityId
+    const hasTier = identity.adTier !== 'unclassified'
+    const hasLogon = !!identity.lastLogonAt
+    const isNhi = identity.type === 'non_human'
+
+    // Filled field count determines base completeness
+    const fields = [hasEmail, hasDept, !isNhi || hasOwner, hasTier, hasLogon, !isNhi || !!identity.expiryAt]
+    const filledCount = fields.filter(Boolean).length
+    const completeness = Math.round((filledCount / fields.length) * 100)
+
+    // Score based on identity type and source
+    let score: number
+    if (['active_directory', 'azure_ad'].includes(identity.sourceSystem) && identity.type === 'human') {
+      score = randomInt(75, 95) // Well-known sources with many fields
+    } else if (isNhi && filledCount <= 3) {
+      score = randomInt(30, 60) // Sparse NHIs
+    } else {
+      score = randomInt(50, 75) // Middle ground
+    }
+
+    const freshness = hasLogon ? randomInt(70, 100) : randomInt(20, 50)
+    const accuracy = hasTier && hasEmail ? randomInt(70, 95) : randomInt(40, 65)
+
+    const fieldsMeta: Record<string, any> = {}
+    if (hasEmail) fieldsMeta.email = { filled: true, source: identity.sourceSystem, confidence: randomInt(85, 100), lastUpdated: new Date().toISOString() }
+    if (hasDept) fieldsMeta.department = { filled: true, source: identity.sourceSystem, confidence: randomInt(75, 95), lastUpdated: new Date().toISOString() }
+    if (hasTier) fieldsMeta.adTier = { filled: true, source: identity.sourceSystem, confidence: randomInt(70, 100), lastUpdated: new Date().toISOString() }
+    if (hasLogon) fieldsMeta.lastLogonAt = { filled: true, source: identity.sourceSystem, confidence: 100, lastUpdated: new Date().toISOString() }
+
+    await db.update(schema.identities)
+      .set({
+        dataQuality: { score, completeness, freshness, accuracy, fields: fieldsMeta },
+      })
+      .where(eq(schema.identities.id, identity.id))
+  }
+  console.log(`Seeded data quality scores for ${allIdentities.length} identities`)
+
   // 4. Accounts (1-3 per identity)
   const accountValues: (typeof schema.accounts.$inferInsert)[] = []
   for (const identity of allIdentities) {

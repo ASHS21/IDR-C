@@ -17,6 +17,7 @@ import { entitlements } from '@/lib/db/schema/entitlements'
 import { resources } from '@/lib/db/schema/resources'
 import { integrationSources } from '@/lib/db/schema/integrations'
 import { eq, and, notInArray } from 'drizzle-orm'
+import { scoreIdentityQuality } from '@/lib/data-quality/scorer'
 import type {
   Connector,
   ConnectorConfig,
@@ -147,6 +148,34 @@ export async function executeSync(options: SyncOptions): Promise<SyncReport> {
       count: identitiesUpserted,
       durationMs: upsertIdResult.durationMs,
       errors: upsertIdResult.errors,
+    })
+
+    // 5b. Quality scoring pass for upserted identities
+    notify({ phase: 'qualityScoring', current: 0, total: identitiesUpserted, message: 'Scoring data quality...' })
+    const qualityScoringStart = Date.now()
+    const upsertedIdentities = await db
+      .select()
+      .from(identities)
+      .where(and(
+        eq(identities.orgId, orgId),
+        eq(identities.sourceSystem, config.type as any),
+      ))
+    for (let qi = 0; qi < upsertedIdentities.length; qi++) {
+      const identity = upsertedIdentities[qi]
+      const quality = scoreIdentityQuality(identity)
+      await db.update(identities)
+        .set({ dataQuality: quality })
+        .where(eq(identities.id, identity.id))
+      if (onProgress && qi % 50 === 0) {
+        notify({ phase: 'qualityScoring', current: qi, total: upsertedIdentities.length, message: `Scored ${qi}/${upsertedIdentities.length} identities` })
+      }
+    }
+    notify({ phase: 'qualityScoring', current: upsertedIdentities.length, total: upsertedIdentities.length, message: `Quality scoring complete` })
+    phases.push({
+      phase: 'qualityScoring',
+      count: upsertedIdentities.length,
+      durationMs: Date.now() - qualityScoringStart,
+      errors: [],
     })
 
     // 6. Upsert groups into database

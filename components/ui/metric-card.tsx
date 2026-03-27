@@ -12,6 +12,7 @@ interface MetricCardProps {
   severity?: 'critical' | 'high' | 'medium' | 'low'
   href?: string
   loading?: boolean
+  confidence?: number // 0-100: >= 80 green, 50-79 amber, < 50 red
 }
 
 const SEVERITY_STYLES = {
@@ -23,7 +24,7 @@ const SEVERITY_STYLES = {
 
 export function MetricCard({
   label, value, previousValue, trend, trendIsPositive = false,
-  severity, href, loading,
+  severity, href, loading, confidence,
 }: MetricCardProps) {
   const [displayValue, setDisplayValue] = useState(0)
   const ref = useRef<HTMLDivElement>(null)
@@ -70,6 +71,7 @@ export function MetricCard({
       <p className="text-caption text-[var(--text-secondary)] font-medium uppercase tracking-wider">{label}</p>
       <div className="mt-2 flex items-baseline gap-2">
         <p className="text-hero text-[var(--text-primary)] animate-count-up">
+          {confidence !== undefined && confidence >= 50 && confidence < 80 ? '~' : ''}
           {typeof value === 'number' ? displayValue : value}
         </p>
         {trend && (
@@ -87,6 +89,20 @@ export function MetricCard({
           </span>
         )}
       </div>
+      {confidence !== undefined && (
+        <div className="mt-1.5 flex items-center gap-1.5">
+          <span
+            className="inline-block w-2.5 h-2.5 rounded-full shrink-0"
+            style={{
+              backgroundColor: confidence >= 80 ? 'var(--color-low)' : confidence >= 50 ? 'var(--color-medium)' : 'var(--color-critical)',
+            }}
+            title={confidence >= 80 ? 'High confidence' : confidence >= 50 ? 'Estimated' : 'Low confidence'}
+          />
+          {confidence < 50 && (
+            <span className="text-micro font-medium" style={{ color: 'var(--color-critical)' }}>Low confidence</span>
+          )}
+        </div>
+      )}
     </Wrapper>
   )
 }

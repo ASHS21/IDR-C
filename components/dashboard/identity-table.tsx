@@ -18,6 +18,7 @@ const COLUMNS = [
   { key: 'subType', label: 'Sub-type', sortable: true },
   { key: 'adTier', label: 'AD Tier', sortable: true },
   { key: 'riskScore', label: 'Risk', sortable: true },
+  { key: 'quality', label: 'Quality', sortable: false },
   { key: 'status', label: 'Status', sortable: true },
   { key: 'sourceSystem', label: 'Source', sortable: true },
   { key: 'lastLogonAt', label: 'Last Logon', sortable: true },
@@ -103,6 +104,22 @@ export function IdentityTable({ data, sortBy, sortOrder, onSort }: IdentityTable
                   <span className="font-semibold" style={{ color: risk.color }}>
                     {identity.riskScore}
                   </span>
+                </td>
+                <td className="px-4 py-3">
+                  {(() => {
+                    const dq = (identity as any).dataQuality as { score?: number } | null
+                    const score = dq?.score
+                    if (score == null) return <span className="inline-block w-full h-1.5 rounded-full bg-slate-200" title="Unscored" />
+                    const color = score > 80 ? '#22c55e' : score > 50 ? '#f59e0b' : '#ef4444'
+                    return (
+                      <div className="flex items-center gap-1.5" title={`Quality: ${score}/100`}>
+                        <div className="w-16 h-1.5 rounded-full bg-slate-200 overflow-hidden">
+                          <div className="h-full rounded-full" style={{ width: `${score}%`, backgroundColor: color }} />
+                        </div>
+                        <span className="text-xs text-slate-500">{score}</span>
+                      </div>
+                    )
+                  })()}
                 </td>
                 <td className="px-4 py-3">
                   <span

@@ -37,3 +37,6 @@ export * from './chat-sessions'
 
 // GPO Tracking
 export * from './gpo'
+
+// Phase E2: Data Quality & Identity Resolution
+export * from './identity-aliases'

@@ -21,7 +21,8 @@
     "canaryIdentities": "هويات الكناري",
     "supplyChain": "سلسلة التوريد",
     "resultsHub": "مركز النتائج",
-    "gpoTracking": "تتبع سياسات المجموعة"
+    "gpoTracking": "تتبع سياسات المجموعة",
+    "dataQuality": "جودة البيانات"
   },
   "navSections": {
     "overview": "نظرة عامة",
@@ -708,5 +709,55 @@
       "unlinked": "السياسة غير مرتبطة بأي وحدة تنظيمية",
       "weakPerms": "غير المشرف يمكنه تعديل أمان السياسة"
     }
+  },
+  "dataQuality": {
+    "title": "جودة البيانات",
+    "resolve": "حل التكرارات",
+    "classify": "تصنيف تلقائي",
+    "qualityScore": "درجة الجودة",
+    "completeness": "الاكتمال",
+    "freshness": "الحداثة",
+    "accuracy": "الدقة",
+    "fieldCoverage": "تغطية الحقول",
+    "aliasStatus": "حالة الاسم المستعار",
+    "pendingReview": "بانتظار المراجعة",
+    "confirmed": "مؤكد",
+    "rejected": "مرفوض",
+    "samePerson": "نفس الشخص",
+    "differentPeople": "أشخاص مختلفون",
+    "matchConfidence": "ثقة التطابق",
+    "matchMethod": "طريقة التطابق",
+    "deterministic": "حتمي",
+    "fuzzy": "تقريبي",
+    "aiMatched": "مطابقة بالذكاء الاصطناعي",
+    "manual": "يدوي",
+    "reviewQueue": "قائمة المراجعة",
+    "aiSuggestions": "اقتراحات الذكاء الاصطناعي",
+    "runEnrichment": "تشغيل الإثراء",
+    "autoClassify": "تصنيف تلقائي",
+    "applyAll": "تطبيق الكل بثقة عالية",
+    "apply": "تطبيق",
+    "reject": "رفض",
+    "improveData": "تحسين البيانات",
+    "unscored": "غير مسجل",
+    "highConfidence": "ثقة عالية",
+    "estimated": "تقديري",
+    "lowConfidence": "ثقة منخفضة"
+  },
+  "import": {
+    "dragDrop": "اسحب وأفلت ملف CSV أو انقر للتصفح",
+    "detecting": "جاري اكتشاف تنسيق الأعمدة...",
+    "detected": "تم اكتشاف تعيين الأعمدة",
+    "sourceColumn": "العمود المصدر",
+    "targetField": "الحقل المستهدف",
+    "confidence": "الثقة",
+    "sampleValue": "قيمة عينة",
+    "unmapped": "غير معين",
+    "confirmMapping": "تأكيد واستيراد",
+    "adjustMapping": "تعديل التعيين",
+    "formatDetected": "التنسيق المكتشف",
+    "demoMode": "وضع العرض — باستخدام بيانات اصطناعية. قم بتوصيل بيئتك للحصول على رؤى حقيقية.",
+    "connectNow": "اتصل الآن",
+    "tryDemo": "جرب مع بيانات تجريبية"
   }
 }

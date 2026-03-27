@@ -7,6 +7,10 @@ import type { Connector, RawIdentity, RawGroup, SyncProgressCallback } from './b
 
 interface CSVConfig {
   fileContent: string
+  /** Optional column mapping from AI-detected or user-configured mappings.
+   *  Keys are source CSV header names, values are target Identity Radar field names.
+   *  When provided, headers are remapped before processing. */
+  columnMapping?: Record<string, string>
 }
 
 function parseCsvLine(line: string): string[] {
@@ -38,7 +42,16 @@ export class CSVConnector implements Connector {
   private config: CSVConfig
 
   constructor(credentials: Record<string, string>) {
-    this.config = credentials as unknown as CSVConfig
+    const { columnMapping: mappingStr, ...rest } = credentials
+    let columnMapping: Record<string, string> | undefined
+    if (mappingStr) {
+      try {
+        columnMapping = JSON.parse(mappingStr)
+      } catch {
+        // ignore invalid mapping JSON
+      }
+    }
+    this.config = { ...rest, columnMapping } as unknown as CSVConfig
   }
 
   async testConnection(): Promise<{ ok: boolean; message: string }> {
@@ -51,7 +64,14 @@ export class CSVConnector implements Connector {
       return { ok: false, message: 'CSV must have header + at least one data row' }
     }
 
-    const headers = parseCsvLine(lines[0]).map(h => h.trim().toLowerCase())
+    const rawHeaders = parseCsvLine(lines[0]).map(h => h.trim())
+    const headers = rawHeaders.map(h => {
+      if (this.config.columnMapping) {
+        const mapped = this.config.columnMapping[h]
+        if (mapped) return mapped.toLowerCase()
+      }
+      return h.toLowerCase()
+    })
     const required = ['displayname']
     const missing = required.filter(r => !headers.includes(r))
     if (missing.length) {
@@ -66,7 +86,15 @@ export class CSVConnector implements Connector {
 
   async extractIdentities(onProgress?: SyncProgressCallback): Promise<RawIdentity[]> {
     const lines = this.config.fileContent.trim().split(/\r?\n/)
-    const headers = parseCsvLine(lines[0]).map(h => h.trim().toLowerCase())
+    const rawHeaders = parseCsvLine(lines[0]).map(h => h.trim())
+    // If columnMapping is provided, remap headers to target field names
+    const headers = rawHeaders.map(h => {
+      if (this.config.columnMapping) {
+        const mapped = this.config.columnMapping[h]
+        if (mapped) return mapped.toLowerCase()
+      }
+      return h.toLowerCase()
+    })
     const identities: RawIdentity[] = []
 
     for (let i = 1; i < lines.length; i++) {
