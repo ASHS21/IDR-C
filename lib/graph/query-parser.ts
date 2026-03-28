@@ -70,7 +70,7 @@ export function parseCypherQuery(query: string): GraphQuery {
     const numVal = Number(rawValue)
     result.where = {
       field: camelCase(field),
-      operator: operator as GraphQuery['where'] extends undefined ? never : GraphQuery['where']['operator'],
+      operator: operator as '>' | '<' | '>=' | '<=' | '=' | '!=',
       value: isNaN(numVal) ? rawValue : numVal,
     }
   }
