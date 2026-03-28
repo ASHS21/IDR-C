@@ -192,6 +192,7 @@ DATABASE_URL=postgresql://postgres:${POSTGRES_PASSWORD}@db:5432/identity_radar
 # --- Auth ---
 NEXTAUTH_SECRET=${NEXTAUTH_SECRET}
 NEXTAUTH_URL=${APP_URL}
+AUTH_TRUST_HOST=true
 
 # --- Application ---
 NEXT_PUBLIC_APP_URL=${APP_URL}
