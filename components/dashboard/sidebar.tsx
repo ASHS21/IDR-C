@@ -9,7 +9,7 @@ import {
   AlertTriangle, Brain, TrendingUp, Plug, ScrollText, Settings,
   ChevronLeft, ChevronRight, Menu, X, Network,
   Route, Crosshair, UserX, MessageSquare, Link2, Radar, TableProperties, ShieldCheck,
-  Sparkles,
+  Sparkles, BookOpen,
 } from 'lucide-react'
 
 const NAV_SECTIONS = [
@@ -58,6 +58,7 @@ const NAV_SECTIONS = [
       { href: '/dashboard/data-quality', labelKey: 'dataQuality' as const, icon: Sparkles },
       { href: '/dashboard/integrations', labelKey: 'integrations' as const, icon: Plug },
       { href: '/dashboard/audit', labelKey: 'audit' as const, icon: ScrollText },
+      { href: '/dashboard/docs', labelKey: 'docs' as const, icon: BookOpen },
       { href: '/dashboard/settings', labelKey: 'settings' as const, icon: Settings },
     ],
   },

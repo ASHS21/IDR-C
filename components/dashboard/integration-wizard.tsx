@@ -8,7 +8,7 @@ interface IntegrationWizardProps {
   onCreated: () => void
 }
 
-type IntegrationType = 'active_directory' | 'azure_ad' | 'okta' | 'csv' | 'sailpoint_iiq' | 'broadcom_sso' | 'broadcom_pam' | 'servicenow'
+type IntegrationType = 'active_directory' | 'azure_ad' | 'okta' | 'csv' | 'sailpoint_iiq' | 'broadcom_sso' | 'broadcom_pam' | 'servicenow' | 'microsoft_defender' | 'sap_grc' | 'hashicorp_vault' | 'splunk' | 'beyondtrust' | 'digicert'
 
 interface TypeOption {
   type: IntegrationType
@@ -95,6 +95,66 @@ const INTEGRATION_TYPES: TypeOption[] = [
     icon: (
       <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
         <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
+      </svg>
+    ),
+  },
+  {
+    type: 'microsoft_defender',
+    label: 'Microsoft Defender for Identity',
+    description: 'Identity threat signals via M365 Defender API',
+    icon: (
+      <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m0-10.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.75c0 5.592 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.57-.598-3.75h-.152c-3.196 0-6.1-1.249-8.25-3.286zm0 13.036h.008v.008H12v-.008z" />
+      </svg>
+    ),
+  },
+  {
+    type: 'sap_grc',
+    label: 'SAP GRC / SAP IdM',
+    description: 'Users, roles, and SoD violations from SAP GRC Access Control',
+    icon: (
+      <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M20.25 6.375c0 2.278-3.694 4.125-8.25 4.125S3.75 8.653 3.75 6.375m16.5 0c0-2.278-3.694-4.125-8.25-4.125S3.75 4.097 3.75 6.375m16.5 0v11.25c0 2.278-3.694 4.125-8.25 4.125s-8.25-1.847-8.25-4.125V6.375m16.5 0v3.75m-16.5-3.75v3.75m16.5 0v3.75C20.25 16.153 16.556 18 12 18s-8.25-1.847-8.25-4.125v-3.75m16.5 0c0 2.278-3.694 4.125-8.25 4.125s-8.25-1.847-8.25-4.125" />
+      </svg>
+    ),
+  },
+  {
+    type: 'hashicorp_vault',
+    label: 'HashiCorp Vault',
+    description: 'Entities, groups, policies, and secret engines from Vault',
+    icon: (
+      <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M21 7.5l-2.25-1.313M21 7.5v2.25m0-2.25l-2.25 1.313M3 7.5l2.25-1.313M3 7.5l2.25 1.313M3 7.5v2.25m9 3l2.25-1.313M12 12.75l-2.25-1.313M12 12.75V15m0 6.75l2.25-1.313M12 21.75V19.5m0 2.25l-2.25-1.313m0-16.875L12 2.25l2.25 1.313M21 14.25v2.25l-2.25 1.313m-13.5 0L3 16.5v-2.25" />
+      </svg>
+    ),
+  },
+  {
+    type: 'splunk',
+    label: 'Splunk SIEM',
+    description: 'Identity-related security events and alerts from Splunk',
+    icon: (
+      <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 3v11.25A2.25 2.25 0 006 16.5h2.25M3.75 3h-1.5m1.5 0h16.5m0 0h1.5m-1.5 0v11.25A2.25 2.25 0 0118 16.5h-2.25m-7.5 0h7.5m-7.5 0l-1 3m8.5-3l1 3m0 0l.5 1.5m-.5-1.5h-9.5m0 0l-.5 1.5m.75-9l3-3 2.148 2.148A12.061 12.061 0 0116.5 7.605" />
+      </svg>
+    ),
+  },
+  {
+    type: 'beyondtrust',
+    label: 'BeyondTrust PAM',
+    description: 'Privileged accounts, sessions, and policies from BeyondTrust',
+    icon: (
+      <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 5.25a3 3 0 013 3m3 0a6 6 0 01-7.029 5.912c-.563-.097-1.159.026-1.563.43L10.5 17.25H8.25v2.25H6v2.25H2.25v-2.818c0-.597.237-1.17.659-1.591l6.499-6.499c.404-.404.527-1 .43-1.563A6 6 0 1121.75 8.25z" />
+      </svg>
+    ),
+  },
+  {
+    type: 'digicert',
+    label: 'DigiCert CertCentral',
+    description: 'Certificate lifecycle, expiry, and certificate-based identities',
+    icon: (
+      <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m.75 12l3 3m0 0l3-3m-3 3v-6m-1.5-9H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
       </svg>
     ),
   },
@@ -374,6 +434,90 @@ export function IntegrationWizard({ isOpen, onClose, onCreated }: IntegrationWiz
                   </div>
                   <p className="text-[10px] text-[var(--text-tertiary)]">
                     Required ServiceNow roles: itil, personalize_choices, rest_api_explorer. OAuth2 is recommended for production.
+                  </p>
+                </>
+              )}
+
+              {selectedType === 'microsoft_defender' && (
+                <>
+                  <FormField label="Tenant ID" field="tenantId" value={credentials.tenantId} onChange={handleFieldChange} placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" />
+                  <FormField label="Client ID" field="clientId" value={credentials.clientId} onChange={handleFieldChange} placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" />
+                  <FormField label="Client Secret" field="clientSecret" value={credentials.clientSecret} onChange={handleFieldChange} type="password" />
+                  <p className="text-[10px] text-[var(--text-tertiary)]">
+                    Requires Microsoft Graph SecurityEvents.Read.All and IdentityRiskEvent.Read.All permissions.
+                  </p>
+                </>
+              )}
+
+              {selectedType === 'sap_grc' && (
+                <>
+                  <FormField label="SAP GRC Base URL" field="baseUrl" value={credentials.baseUrl} onChange={handleFieldChange} placeholder="https://sap-grc.example.com:8443/sap/bc" />
+                  <FormField label="Username" field="username" value={credentials.username} onChange={handleFieldChange} placeholder="GRC_API_USER" />
+                  <FormField label="Password" field="password" value={credentials.password} onChange={handleFieldChange} type="password" />
+                  <div className="border-t border-[var(--border-default)] pt-3 mt-3">
+                    <p className="text-xs font-medium text-[var(--text-secondary)] mb-2">SAP IdM (Optional)</p>
+                    <div className="space-y-3">
+                      <FormField label="Client ID (optional)" field="clientId" value={credentials.clientId} onChange={handleFieldChange} placeholder="OAuth2 client ID" />
+                      <FormField label="Client Secret (optional)" field="clientSecret" value={credentials.clientSecret} onChange={handleFieldChange} type="password" />
+                      <FormField label="IdM Endpoint (optional)" field="idmEndpoint" value={credentials.idmEndpoint} onChange={handleFieldChange} placeholder="https://sap-idm.example.com/idmrest" />
+                    </div>
+                  </div>
+                  <p className="text-[10px] text-[var(--text-tertiary)]">
+                    Pulls users, roles, risk analysis results, SoD violations, and firefighter access logs.
+                  </p>
+                </>
+              )}
+
+              {selectedType === 'hashicorp_vault' && (
+                <>
+                  <FormField label="Vault Address" field="vaultAddr" value={credentials.vaultAddr} onChange={handleFieldChange} placeholder="https://vault.example.com:8200" />
+                  <FormField label="Vault Token (optional)" field="vaultToken" value={credentials.vaultToken} onChange={handleFieldChange} type="password" />
+                  <div className="border-t border-[var(--border-default)] pt-3 mt-3">
+                    <p className="text-xs font-medium text-[var(--text-secondary)] mb-2">AppRole Auth (Optional - alternative to token)</p>
+                    <div className="space-y-3">
+                      <FormField label="Role ID" field="roleId" value={credentials.roleId} onChange={handleFieldChange} placeholder="AppRole Role ID" />
+                      <FormField label="Secret ID" field="secretId" value={credentials.secretId} onChange={handleFieldChange} type="password" />
+                    </div>
+                  </div>
+                  <p className="text-[10px] text-[var(--text-tertiary)]">
+                    Imports entities, groups, policies, and secret engine metadata. Provide either a token or AppRole credentials.
+                  </p>
+                </>
+              )}
+
+              {selectedType === 'splunk' && (
+                <>
+                  <FormField label="Splunk Base URL" field="baseUrl" value={credentials.baseUrl} onChange={handleFieldChange} placeholder="https://splunk.example.com:8089" />
+                  <div className="border-t border-[var(--border-default)] pt-3 mt-3">
+                    <p className="text-xs font-medium text-[var(--text-secondary)] mb-2">Authentication (choose one)</p>
+                    <div className="space-y-3">
+                      <FormField label="Username (optional)" field="username" value={credentials.username} onChange={handleFieldChange} placeholder="splunk_admin" />
+                      <FormField label="Password (optional)" field="password" value={credentials.password} onChange={handleFieldChange} type="password" />
+                      <FormField label="Bearer Token (optional)" field="bearerToken" value={credentials.bearerToken} onChange={handleFieldChange} type="password" />
+                    </div>
+                  </div>
+                  <p className="text-[10px] text-[var(--text-tertiary)]">
+                    Ingests identity-related security events, failed auth alerts, and notable events. Provide either username/password or a bearer token.
+                  </p>
+                </>
+              )}
+
+              {selectedType === 'beyondtrust' && (
+                <>
+                  <FormField label="Host URL" field="hostUrl" value={credentials.hostUrl} onChange={handleFieldChange} placeholder="https://beyondtrust.example.com" />
+                  <FormField label="API Key" field="apiKey" value={credentials.apiKey} onChange={handleFieldChange} type="password" />
+                  <FormField label="Run As User" field="runAsUser" value={credentials.runAsUser} onChange={handleFieldChange} placeholder="api_service_account" />
+                  <p className="text-[10px] text-[var(--text-tertiary)]">
+                    Imports managed accounts, managed systems, access policies, and session metadata from BeyondTrust Password Safe.
+                  </p>
+                </>
+              )}
+
+              {selectedType === 'digicert' && (
+                <>
+                  <FormField label="API Key" field="apiKey" value={credentials.apiKey} onChange={handleFieldChange} type="password" />
+                  <p className="text-[10px] text-[var(--text-tertiary)]">
+                    Tracks certificate lifecycle, expiry dates, and certificate-based identities from DigiCert CertCentral.
                   </p>
                 </>
               )}
