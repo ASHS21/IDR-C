@@ -924,7 +924,6 @@ function ApiTab({ search }: { search: string }) {
 /* Enriched connector documentation — prerequisites, setup steps, data pulled, sync, troubleshooting */
 
 interface ConnectorGuide {
-  type: string
   prerequisites: string[]
   setupSteps: string[]
   dataPulled: string[]
