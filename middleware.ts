@@ -48,8 +48,9 @@ export default auth((req) => {
   // Authentication guards
   // ------------------------------------------------------------------
   const isAuthApi = pathname.startsWith('/api/auth')
+  const isPublicApi = pathname === '/api/health'
 
-  if (isAuthApi) {
+  if (isAuthApi || isPublicApi) {
     const response = NextResponse.next()
     return applySecurityHeaders(handleCors(req, response))
   }
