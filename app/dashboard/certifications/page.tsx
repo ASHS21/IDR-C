@@ -37,7 +37,7 @@ export default function CertificationsPage() {
         <MetricCard label={t('certified')} value={cert.certified || 0} color="green" />
         <MetricCard label={t('pending')} value={cert.pending || 0} color="blue" />
         <MetricCard label={t('expired')} value={cert.expired || 0} color={cert.expired > 0 ? 'red' : 'green'} />
-        <MetricCard label={t('revoked')} value={cert.revoked || 0} color="default" />
+        <MetricCard label={t('revoked')} value={cert.revoked || 0} />
       </div>
 
       {/* Certification progress */}
