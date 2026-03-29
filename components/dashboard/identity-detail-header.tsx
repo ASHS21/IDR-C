@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
-import { RiskGauge } from './risk-gauge'
+import { RiskGauge } from '@/components/ui/risk-gauge'
 import { ActionDialog } from './action-dialog'
 import { AD_TIER_CONFIG, IDENTITY_STATUS_CONFIG } from '@/lib/utils/constants'
 import { formatDate } from '@/lib/utils/formatters'
