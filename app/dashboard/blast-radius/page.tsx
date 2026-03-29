@@ -2,7 +2,7 @@
 
 import { useState, useCallback } from 'react'
 import { useTranslations } from 'next-intl'
-import { MetricCard } from '@/components/dashboard/metric-card'
+import { MetricCard } from '@/components/ui/metric-card'
 import { BlastRadiusGraph } from '@/components/dashboard/blast-radius-graph'
 import type { BlastRadiusGraphProps } from '@/components/dashboard/blast-radius-graph'
 import { Search, GitCompare, X } from 'lucide-react'

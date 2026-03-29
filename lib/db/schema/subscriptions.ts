@@ -41,8 +41,5 @@ export const apiKeys = pgTable('api_keys', {
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 })
 
-export const TIER_LIMITS = {
-  free: { identities: 500, integrations: 1, users: 3, aiRuns: 5, retentionDays: 30 },
-  professional: { identities: 10000, integrations: 5, users: 15, aiRuns: 50, retentionDays: 365 },
-  enterprise: { identities: Infinity, integrations: Infinity, users: Infinity, aiRuns: Infinity, retentionDays: 1095 },
-} as const
+// Subscription tier limits removed — single open-source edition for now.
+// Add back when monetization is ready.

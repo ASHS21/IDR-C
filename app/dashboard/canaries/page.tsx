@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { useTranslations } from 'next-intl'
-import { MetricCard } from '@/components/dashboard/metric-card'
+import { MetricCard } from '@/components/ui/metric-card'
 
 interface Canary {
   id: string

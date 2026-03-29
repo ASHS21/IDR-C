@@ -2,7 +2,7 @@
 
 import { useQuery } from '@tanstack/react-query'
 import { useTranslations } from 'next-intl'
-import { MetricCard } from '@/components/dashboard/metric-card'
+import { MetricCard } from '@/components/ui/metric-card'
 import { AD_TIER_CONFIG, IDENTITY_STATUS_CONFIG, getRiskLevel } from '@/lib/utils/constants'
 import { formatDate, formatRelativeTime } from '@/lib/utils/formatters'
 import Link from 'next/link'

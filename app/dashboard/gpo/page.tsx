@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
-import { MetricCard } from '@/components/dashboard/metric-card'
+import { MetricCard } from '@/components/ui/metric-card'
 import { GpoLinksTree } from '@/components/dashboard/gpo-links-tree'
 import { Shield, AlertTriangle, Link2, UserX, Search, Loader2 } from 'lucide-react'
 

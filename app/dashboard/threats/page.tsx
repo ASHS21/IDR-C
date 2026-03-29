@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useTranslations } from 'next-intl'
 import { useRouter } from 'next/navigation'
-import { MetricCard } from '@/components/dashboard/metric-card'
+import { MetricCard } from '@/components/ui/metric-card'
 import { KillChainViz } from '@/components/dashboard/kill-chain-viz'
 import { ThreatCard } from '@/components/dashboard/threat-card'
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts'

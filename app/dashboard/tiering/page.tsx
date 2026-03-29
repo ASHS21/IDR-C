@@ -5,7 +5,7 @@ import { useTranslations } from 'next-intl'
 import { useTieringData } from '@/lib/hooks/use-tiering'
 import { TierPyramid } from '@/components/dashboard/tier-pyramid'
 import { TierHeatmap } from '@/components/charts/tier-heatmap'
-import { MetricCard } from '@/components/dashboard/metric-card'
+import { MetricCard } from '@/components/ui/metric-card'
 import { AD_TIER_CONFIG, getRiskLevel } from '@/lib/utils/constants'
 
 export default function TieringPage() {
