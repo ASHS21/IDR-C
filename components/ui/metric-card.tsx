@@ -3,28 +3,37 @@
 import { useEffect, useRef, useState } from 'react'
 import { TrendingUp, TrendingDown, Minus } from 'lucide-react'
 
-interface MetricCardProps {
+export interface MetricCardProps {
   label: string
   value: number | string
   previousValue?: number
   trend?: 'up' | 'down' | 'flat'
   trendIsPositive?: boolean // true = up is good (compliance), false = up is bad (violations)
   severity?: 'critical' | 'high' | 'medium' | 'low'
+  color?: 'red' | 'orange' | 'green' | 'blue' // backward-compat alias for border color
   href?: string
   loading?: boolean
   confidence?: number // 0-100: >= 80 green, 50-79 amber, < 50 red
+  subtitle?: string
 }
 
-const SEVERITY_STYLES = {
+const SEVERITY_STYLES: Record<string, string> = {
   critical: 'border-l-[var(--color-critical)]',
   high: 'border-l-[var(--color-high)]',
   medium: 'border-l-[var(--color-medium)]',
   low: 'border-l-[var(--color-low)]',
 }
 
+const COLOR_STYLES: Record<string, string> = {
+  red: 'border-l-[var(--color-critical)]',
+  orange: 'border-l-[var(--color-high)]',
+  green: 'border-l-[var(--color-low)]',
+  blue: 'border-l-[var(--color-info)]',
+}
+
 export function MetricCard({
   label, value, previousValue, trend, trendIsPositive = false,
-  severity, href, loading, confidence,
+  severity, color, href, loading, confidence, subtitle,
 }: MetricCardProps) {
   const [displayValue, setDisplayValue] = useState(0)
   const ref = useRef<HTMLDivElement>(null)
@@ -63,7 +72,7 @@ export function MetricCard({
       {...wrapperProps}
       className={`
         block rounded-[var(--radius-card)] border border-[var(--border-default)] bg-[var(--bg-primary)] p-5
-        ${severity ? `border-l-[3px] ${SEVERITY_STYLES[severity]}` : ''}
+        ${severity ? `border-l-[3px] ${SEVERITY_STYLES[severity]}` : color ? `border-l-[3px] ${COLOR_STYLES[color]}` : ''}
         ${href ? 'cursor-pointer hover:border-[var(--border-hover)] transition-colors' : ''}
       `}
       style={{ boxShadow: 'var(--shadow-card)' }}
