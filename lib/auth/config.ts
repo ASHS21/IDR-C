@@ -70,10 +70,24 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     }),
   ],
   callbacks: {
-    async jwt({ token, user }) {
+    async jwt({ token, user, trigger }) {
       if (user) {
         token.orgId = (user as any).orgId
         token.appRole = (user as any).appRole
+      }
+      // Re-fetch orgId if it's missing (e.g., after onboarding creates the org)
+      if (!token.orgId && token.sub) {
+        try {
+          const [freshUser] = await db
+            .select({ orgId: users.orgId, appRole: users.appRole })
+            .from(users)
+            .where(eq(users.id, token.sub))
+            .limit(1)
+          if (freshUser?.orgId) {
+            token.orgId = freshUser.orgId
+            token.appRole = freshUser.appRole
+          }
+        } catch {}
       }
       return token
     },

@@ -40,7 +40,7 @@ export async function POST(req: NextRequest) {
       .set({ orgId: org.id, appRole: 'admin' })
       .where(eq(users.id, session.user.id))
 
-    return NextResponse.json({ orgId: org.id })
+    return NextResponse.json({ orgId: org.id, refreshSession: true })
   }
 
   if (step === 'integration') {
