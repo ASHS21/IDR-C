@@ -210,7 +210,7 @@ export function IdentityDetailHeader({ data }: Props) {
 
           {/* Risk gauge + actions */}
           <div className="flex flex-col items-center gap-4">
-            <RiskGauge value={identity.riskScore} label="Risk Score" size={140} />
+            <RiskGauge score={identity.riskScore} label="Risk Score" size="lg" />
 
             {userRole && (
               <div className="flex flex-wrap gap-2">
