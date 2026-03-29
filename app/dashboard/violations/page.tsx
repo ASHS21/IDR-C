@@ -77,7 +77,7 @@ export default function ViolationsPage() {
         </div>
         <div className="bg-[var(--bg-primary)] rounded-xl border border-[var(--border-default)] p-6 flex flex-col items-center justify-center" style={{ boxShadow: 'var(--shadow-card)' }}>
           <h3 className="text-sm font-medium text-[var(--text-secondary)] mb-4 self-start">{t('remediationRate')}</h3>
-          <RiskGauge value={summary.remediationRate} label={t('violationsRemediated')} size={160} />
+          <RiskGauge value={summary.remediationRate} label={t('violationsRemediated')} size="lg" />
           <div className="grid grid-cols-3 gap-4 mt-6 text-center w-full">
             <div>
               <p className="text-lg font-bold text-[var(--text-primary)]">{summary.byStatus.open || 0}</p>
