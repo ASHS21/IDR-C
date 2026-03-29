@@ -9,7 +9,7 @@ import {
   AlertTriangle, Brain, TrendingUp, Plug, ScrollText, Settings,
   ChevronLeft, ChevronRight, Menu, X, Network,
   Route, Crosshair, UserX, MessageSquare, Link2, Radar, TableProperties, ShieldCheck,
-  Sparkles, BookOpen,
+  Sparkles, BookOpen, Upload,
 } from 'lucide-react'
 
 const NAV_SECTIONS = [
@@ -55,6 +55,7 @@ const NAV_SECTIONS = [
   {
     labelKey: 'operations' as const,
     items: [
+      { href: '/dashboard/import', labelKey: 'import' as const, icon: Upload },
       { href: '/dashboard/data-quality', labelKey: 'dataQuality' as const, icon: Sparkles },
       { href: '/dashboard/integrations', labelKey: 'integrations' as const, icon: Plug },
       { href: '/dashboard/audit', labelKey: 'audit' as const, icon: ScrollText },
