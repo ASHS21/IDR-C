@@ -38,7 +38,7 @@ export type RateLimitBucket = 'api' | 'auth' | 'ai'
 
 const LIMITS: Record<RateLimitBucket, { maxRequests: number; windowMs: number }> = {
   api: { maxRequests: 100, windowMs: 60_000 },
-  auth: { maxRequests: 10, windowMs: 60_000 },
+  auth: { maxRequests: 30, windowMs: 60_000 },
   ai: { maxRequests: 5, windowMs: 60_000 },
 }
 

@@ -156,9 +156,11 @@ export default function LoginPage() {
             </Link>
           </p>
 
-          <p className="text-micro text-[var(--text-tertiary)] text-center mt-3">
-            Demo: admin@acmefs.sa / admin123
-          </p>
+          {process.env.NEXT_PUBLIC_DEMO_MODE === 'true' && (
+            <p className="text-micro text-[var(--text-tertiary)] text-center mt-3">
+              Demo: admin@acmefs.sa / admin123
+            </p>
+          )}
         </div>
       </div>
     </main>
