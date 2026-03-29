@@ -1,3 +1,7 @@
+# WARNING: This script uses -ExecutionPolicy Bypass and downloads executables.
+# Corporate EDR solutions (CrowdStrike, SentinelOne, Defender for Endpoint)
+# WILL flag this behavior. For customer demos, use Docker Compose directly
+# instead of this installer. See docs/getting-started/customer-demo-setup.md
 # =============================================================================
 # Identity Radar - Windows Installation Script
 # PowerShell 5.1 compatible (Windows 10 built-in)

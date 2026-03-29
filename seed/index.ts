@@ -76,7 +76,8 @@ async function seed() {
   console.log(`Created org: ${org.id}`)
 
   // 2. Admin user for NextAuth
-  const hashedPassword = await bcrypt.hash('admin123', 10)
+  const seedPassword = process.env.SEED_ADMIN_PASSWORD || 'admin123'
+  const hashedPassword = await bcrypt.hash(seedPassword, 10)
   await db.insert(schema.users).values({
     name: 'Admin User',
     email: 'admin@acmefs.sa',
@@ -84,7 +85,7 @@ async function seed() {
     appRole: 'admin',
     orgId: org.id,
   })
-  console.log('Created admin user: admin@acmefs.sa / admin123')
+  console.log('Created admin user: admin@acmefs.sa (password set via SEED_ADMIN_PASSWORD env var)')
 
   // 3. Identities (200 total: 140 human + 60 NHI)
   const identityValues: (typeof schema.identities.$inferInsert)[] = []
@@ -1697,7 +1698,7 @@ async function seed() {
   console.log(`Created ${gpoPermValues.length} GPO permissions`)
 
   console.log('\nSeed complete!')
-  console.log('Login: admin@acmefs.sa / admin123')
+  console.log('Login: admin@acmefs.sa (password set via SEED_ADMIN_PASSWORD env var)')
 
   await client.end()
   process.exit(0)
