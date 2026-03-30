@@ -26,8 +26,8 @@ const COLUMNS = [
 ]
 
 function SortIcon({ column, sortBy, sortOrder }: { column: string; sortBy: string; sortOrder: string }) {
-  if (column !== sortBy) return <span className="text-slate-300 ml-1">&#8597;</span>
-  return <span className="ml-1">{sortOrder === 'asc' ? '&#8593;' : '&#8595;'}</span>
+  if (column !== sortBy) return <span className="text-slate-300 ml-1">↕</span>
+  return <span className="ml-1">{sortOrder === 'asc' ? '↑' : '↓'}</span>
 }
 
 function formatSource(source: string): string {
@@ -113,19 +113,19 @@ export function IdentityTable({ data, sortBy, sortOrder, onSort }: IdentityTable
                     if (velocity > 0.5) {
                       return (
                         <span className="text-xs font-medium text-red-600 flex items-center gap-0.5" title={`+${velocity}/day`}>
-                          <span>&#8593;</span> {velocity.toFixed(2)}
+                          <span>↑</span> {velocity.toFixed(2)}
                         </span>
                       )
                     }
                     if (velocity < -0.5) {
                       return (
                         <span className="text-xs font-medium text-green-600 flex items-center gap-0.5" title={`${velocity}/day`}>
-                          <span>&#8595;</span> {velocity.toFixed(2)}
+                          <span>↓</span> {velocity.toFixed(2)}
                         </span>
                       )
                     }
                     return (
-                      <span className="text-xs text-slate-400" title="Stable">&#8212;</span>
+                      <span className="text-xs text-slate-400" title="Stable">—</span>
                     )
                   })()}
                 </td>
