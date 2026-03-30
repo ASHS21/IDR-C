@@ -24,7 +24,8 @@
     "supplyChain": "Supply Chain",
     "resultsHub": "Results Hub",
     "gpoTracking": "GPO Tracking",
-    "dataQuality": "Data Quality"
+    "dataQuality": "Data Quality",
+    "reports": "Reports"
   },
   "navSections": {
     "overview": "OVERVIEW",
@@ -381,7 +382,22 @@
     "dark": "Dark",
     "system": "System",
     "language": "Language",
-    "integrationsNote": "Manage integrations from the Integrations page."
+    "integrationsNote": "Manage integrations from the Integrations page.",
+    "webhooks": "Webhooks",
+    "webhooksTitle": "Webhook Endpoints",
+    "addWebhook": "Add Webhook",
+    "webhookNamePlaceholder": "Webhook name (e.g. Slack Security Alerts)",
+    "webhookUrlPlaceholder": "Webhook URL (https://...)",
+    "webhookSecretPlaceholder": "Signing secret (optional)",
+    "webhookEvents": "Trigger on events:",
+    "saveWebhook": "Save Webhook",
+    "saving": "Saving...",
+    "cancelWebhook": "Cancel",
+    "testWebhook": "Send test payload",
+    "deleteWebhook": "Delete webhook",
+    "webhookEnabled": "Enabled",
+    "webhookDisabled": "Disabled",
+    "noWebhooks": "No webhook endpoints configured yet"
   },
   "login": {
     "title": "Identity Radar",
@@ -795,5 +811,42 @@
     "demoMode": "DEMO MODE — Using synthetic data. Connect your environment for real insights.",
     "connectNow": "Connect Now",
     "tryDemo": "Try with Demo Data"
+  },
+  "reports": {
+    "title": "Executive Reports",
+    "period": "Period",
+    "last30Days": "Last 30 days",
+    "last60Days": "Last 60 days",
+    "last90Days": "Last 90 days",
+    "generateReport": "Generate Executive Report",
+    "generating": "Generating...",
+    "printPdf": "Print / Save as PDF",
+    "noReport": "No report generated yet",
+    "noReportHint": "Select a date range and click Generate to create an executive report."
+  },
+  "shortcuts": {
+    "title": "Keyboard Shortcuts",
+    "global": "GLOBAL",
+    "navigation": "NAVIGATION",
+    "tables": "TABLES",
+    "actions": "ACTIONS",
+    "search": "Search",
+    "toggleSidebar": "Toggle sidebar",
+    "showHelp": "Show keyboard shortcuts",
+    "goToDashboard": "Go to Dashboard",
+    "goToIdentities": "Go to Identities",
+    "goToTiering": "Go to Tiering",
+    "goToViolations": "Go to Violations",
+    "goToAi": "Go to AI Analysis",
+    "goToReports": "Go to Reports",
+    "goToThreats": "Go to Threats",
+    "goToSettings": "Go to Settings",
+    "moveDown": "Move down",
+    "moveUp": "Move up",
+    "openItem": "Open item",
+    "selectItem": "Select item",
+    "acknowledge": "Acknowledge",
+    "certify": "Certify",
+    "review": "Review"
   }
 }

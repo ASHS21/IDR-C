@@ -17,6 +17,14 @@ interface RiskFactors {
 }
 
 /**
+ * Calculate risk velocity: rate of risk score change over 30 days.
+ * Positive = getting riskier, negative = improving.
+ */
+export function calculateRiskVelocity(currentScore: number, score30dAgo: number): number {
+  return Number(((currentScore - score30dAgo) / 30).toFixed(2))
+}
+
+/**
  * Calculate risk score from factors.
  *
  * Weight allocation (total = 100):

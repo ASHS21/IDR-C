@@ -9,7 +9,7 @@ import {
   AlertTriangle, Brain, TrendingUp, Plug, ScrollText, Settings,
   ChevronLeft, ChevronRight, Menu, X, Network,
   Route, Crosshair, UserX, MessageSquare, Link2, Radar, TableProperties, ShieldCheck,
-  Sparkles, BookOpen, Upload,
+  Sparkles, BookOpen, Upload, FileText,
 } from 'lucide-react'
 
 const NAV_SECTIONS = [
@@ -50,6 +50,7 @@ const NAV_SECTIONS = [
       { href: '/dashboard/ai', labelKey: 'ai' as const, icon: Brain },
       { href: '/dashboard/ai-chat', labelKey: 'aiChat' as const, icon: MessageSquare },
       { href: '/dashboard/graph', labelKey: 'graph' as const, icon: Network },
+      { href: '/dashboard/reports', labelKey: 'reports' as const, icon: FileText },
     ],
   },
   {

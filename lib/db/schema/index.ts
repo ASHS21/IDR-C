@@ -40,3 +40,12 @@ export * from './gpo'
 
 // Phase E2: Data Quality & Identity Resolution
 export * from './identity-aliases'
+
+// Webhooks
+export * from './webhooks'
+
+// Daily Intelligence Briefings
+export * from './briefings'
+
+// Automation Rules Engine
+export * from './automation-rules'

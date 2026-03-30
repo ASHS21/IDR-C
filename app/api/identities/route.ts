@@ -43,13 +43,31 @@ export async function GET(req: NextRequest) {
     )
   }
 
+  // Velocity filter: 'deteriorating' (velocity > 0), 'improving' (velocity < 0), 'stable'
+  const velocityFilter = params.velocityDirection
+  if (velocityFilter === 'deteriorating') {
+    conditions.push(sql`(${identities.riskFactors}->>'riskVelocity')::float > 0`)
+  } else if (velocityFilter === 'improving') {
+    conditions.push(sql`(${identities.riskFactors}->>'riskVelocity')::float < 0`)
+  } else if (velocityFilter === 'stable') {
+    conditions.push(sql`abs((${identities.riskFactors}->>'riskVelocity')::float) <= 0.5`)
+  }
+
   const where = and(...conditions)
 
-  // Sort
-  const sortColumn = filters.sortBy && filters.sortBy in identities
-    ? (identities as any)[filters.sortBy]
-    : identities.riskScore
-  const orderFn = filters.sortOrder === 'asc' ? asc : desc
+  // Sort — support velocity sorting via JSONB
+  let orderExpr
+  if (filters.sortBy === 'velocity') {
+    orderExpr = filters.sortOrder === 'asc'
+      ? asc(sql`(${identities.riskFactors}->>'riskVelocity')::float`)
+      : desc(sql`(${identities.riskFactors}->>'riskVelocity')::float`)
+  } else {
+    const sortColumn = filters.sortBy && filters.sortBy in identities
+      ? (identities as any)[filters.sortBy]
+      : identities.riskScore
+    const orderFn = filters.sortOrder === 'asc' ? asc : desc
+    orderExpr = orderFn(sortColumn)
+  }
 
   const offset = (filters.page - 1) * filters.pageSize
 
@@ -58,7 +76,7 @@ export async function GET(req: NextRequest) {
       .select()
       .from(identities)
       .where(where)
-      .orderBy(orderFn(sortColumn))
+      .orderBy(orderExpr)
       .limit(filters.pageSize)
       .offset(offset),
     db

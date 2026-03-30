@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/lib/auth/config'
 import { db } from '@/lib/db'
-import { notifications } from '@/lib/db/schema'
+import { notifications, webhookEndpoints } from '@/lib/db/schema'
 import { eq, and, desc, count, SQL } from 'drizzle-orm'
+import { sendWebhook } from '@/lib/webhooks/sender'
 
 export async function GET(req: NextRequest) {
   const session = await auth()
@@ -68,5 +69,46 @@ export async function POST(req: NextRequest) {
     metadata: metadata || null,
   }).returning()
 
+  // Deliver to matching webhooks (fire-and-forget)
+  deliverToWebhooks(session.user.orgId, created).catch((err) => {
+    console.error('[Notification] Webhook delivery error:', err)
+  })
+
   return NextResponse.json(created, { status: 201 })
+}
+
+async function deliverToWebhooks(orgId: string, notification: any) {
+  const webhooks = await db
+    .select()
+    .from(webhookEndpoints)
+    .where(and(eq(webhookEndpoints.orgId, orgId), eq(webhookEndpoints.enabled, true)))
+
+  const matching = webhooks.filter(
+    (wh) => wh.events && wh.events.includes(notification.type)
+  )
+
+  for (const wh of matching) {
+    const payload = {
+      event: notification.type,
+      timestamp: new Date().toISOString(),
+      data: {
+        id: notification.id,
+        title: notification.title,
+        message: notification.message,
+        severity: notification.severity,
+        link: notification.link,
+        metadata: notification.metadata,
+      },
+    }
+
+    const success = await sendWebhook(wh.url, payload, wh.secret ?? undefined)
+    await db
+      .update(webhookEndpoints)
+      .set({
+        lastDeliveredAt: new Date(),
+        lastStatus: success ? 200 : 500,
+        failureCount: success ? 0 : wh.failureCount + 1,
+      })
+      .where(eq(webhookEndpoints.id, wh.id))
+  }
 }

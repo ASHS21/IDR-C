@@ -18,6 +18,7 @@ const COLUMNS = [
   { key: 'subType', label: 'Sub-type', sortable: true },
   { key: 'adTier', label: 'AD Tier', sortable: true },
   { key: 'riskScore', label: 'Risk', sortable: true },
+  { key: 'velocity', label: 'Velocity', sortable: true },
   { key: 'quality', label: 'Quality', sortable: false },
   { key: 'status', label: 'Status', sortable: true },
   { key: 'sourceSystem', label: 'Source', sortable: true },
@@ -104,6 +105,29 @@ export function IdentityTable({ data, sortBy, sortOrder, onSort }: IdentityTable
                   <span className="font-semibold" style={{ color: risk.color }}>
                     {identity.riskScore}
                   </span>
+                </td>
+                <td className="px-4 py-3">
+                  {(() => {
+                    const rf = (identity as any).riskFactors as { riskVelocity?: number } | null
+                    const velocity = rf?.riskVelocity ?? 0
+                    if (velocity > 0.5) {
+                      return (
+                        <span className="text-xs font-medium text-red-600 flex items-center gap-0.5" title={`+${velocity}/day`}>
+                          <span>&#8593;</span> {velocity.toFixed(2)}
+                        </span>
+                      )
+                    }
+                    if (velocity < -0.5) {
+                      return (
+                        <span className="text-xs font-medium text-green-600 flex items-center gap-0.5" title={`${velocity}/day`}>
+                          <span>&#8595;</span> {velocity.toFixed(2)}
+                        </span>
+                      )
+                    }
+                    return (
+                      <span className="text-xs text-slate-400" title="Stable">&#8212;</span>
+                    )
+                  })()}
                 </td>
                 <td className="px-4 py-3">
                   {(() => {

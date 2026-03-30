@@ -12,8 +12,9 @@ import { IntegrationHealthStrip } from '@/components/dashboard/integration-healt
 import { CardSkeleton } from '@/components/ui/skeleton'
 import { getRiskLevel } from '@/lib/utils/constants'
 import Link from 'next/link'
-import { AlertTriangle, Shield, TrendingUp, Users, Crosshair, Route, UserX, Sparkles } from 'lucide-react'
+import { AlertTriangle, Shield, TrendingUp, Users, Crosshair, Route, UserX, Sparkles, Sun, ChevronDown, ChevronUp } from 'lucide-react'
 import { ExportPdfButton } from '@/components/dashboard/export-pdf-button'
+import { useState } from 'react'
 
 function LowQualityBanner() {
   const { data } = useQuery<{ completenessDistribution: { low: number; unscored: number } }>({
@@ -38,6 +39,88 @@ function LowQualityBanner() {
         <span className="text-[var(--color-info)] font-medium">Improve →</span>
       </p>
     </Link>
+  )
+}
+
+function TodaysBriefing() {
+  const [expanded, setExpanded] = useState(false)
+  const t = useTranslations('briefing')
+  const { data } = useQuery<{
+    narrative: string | null
+    highlights: Array<{ type: string; text: string }> | null
+    generatedAt: string | null
+  } | null>({
+    queryKey: ['briefing', 'latest'],
+    queryFn: async () => {
+      const res = await fetch('/api/briefings?latest=true')
+      if (!res.ok) throw new Error('Failed')
+      return res.json()
+    },
+    staleTime: 60_000,
+  })
+
+  const isToday = data?.generatedAt
+    ? new Date(data.generatedAt).toDateString() === new Date().toDateString()
+    : false
+
+  const highlights = (data?.highlights || []) as Array<{ type: string; text: string }>
+  const headline = data?.narrative?.split('\n')[0] || null
+
+  return (
+    <div className="rounded-[var(--radius-card)] border border-[var(--border-default)] bg-[var(--bg-primary)] p-4" style={{ boxShadow: 'var(--shadow-card)' }}>
+      <div className="flex items-center justify-between mb-2">
+        <div className="flex items-center gap-2">
+          <Sun size={16} style={{ color: 'var(--color-medium)' }} />
+          <h3 className="text-caption font-semibold text-[var(--text-secondary)] uppercase tracking-wider">
+            {t('todaysBriefing')}
+          </h3>
+        </div>
+        {headline && (
+          <button
+            onClick={() => setExpanded(!expanded)}
+            className="text-micro text-[var(--color-info)] hover:underline flex items-center gap-1"
+          >
+            {expanded ? t('collapse') : t('viewFull')}
+            {expanded ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+          </button>
+        )}
+      </div>
+
+      {!data || !isToday ? (
+        <p className="text-caption text-[var(--text-tertiary)]">{t('generatesAt7am')}</p>
+      ) : (
+        <>
+          {headline && (
+            <p className="text-body text-[var(--text-primary)] mb-2">{headline}</p>
+          )}
+          <div className="flex flex-wrap gap-2 mb-2">
+            {highlights.slice(0, expanded ? highlights.length : 4).map((h, i) => (
+              <span
+                key={i}
+                className="text-micro px-2 py-0.5 rounded-full"
+                style={{
+                  backgroundColor:
+                    h.type === 'positive' ? 'var(--color-low-bg)'
+                    : h.type === 'negative' ? 'var(--color-critical-bg)'
+                    : 'var(--color-info-bg)',
+                  color:
+                    h.type === 'positive' ? 'var(--color-low)'
+                    : h.type === 'negative' ? 'var(--color-critical)'
+                    : 'var(--color-info)',
+                }}
+              >
+                {h.text}
+              </span>
+            ))}
+          </div>
+          {expanded && data.narrative && (
+            <div className="mt-3 p-3 rounded-md bg-[var(--bg-secondary)] text-caption text-[var(--text-secondary)] whitespace-pre-line">
+              {data.narrative}
+            </div>
+          )}
+        </>
+      )}
+    </div>
   )
 }
 
@@ -95,6 +178,9 @@ export default function DashboardOverview() {
 
       {/* Low Data Quality Banner */}
       <LowQualityBanner />
+
+      {/* Today's Briefing */}
+      <TodaysBriefing />
 
       {/* Threat & Attack Surface Metrics */}
       {(data.activeThreats > 0 || data.attackPathsCount > 0 || data.shadowAdminCount > 0) && (

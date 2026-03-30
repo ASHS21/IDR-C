@@ -101,6 +101,18 @@ export function IdentityFilters({ filters, onChange, onReset }: IdentityFiltersP
         <SelectFilter label={tStatus('allStatuses')} value={filters.status || ''} options={STATUS_OPTIONS} onChange={(v) => onChange('status', v)} />
         <SelectFilter label={tSources('allSources')} value={filters.sourceSystem || ''} options={SOURCE_OPTIONS} onChange={(v) => onChange('sourceSystem', v)} />
 
+        <SelectFilter
+          label="Velocity"
+          value={filters.velocityDirection || ''}
+          options={[
+            { value: '', label: tCommon('all') },
+            { value: 'deteriorating', label: t('deteriorating') },
+            { value: 'improving', label: t('improving') },
+            { value: 'stable', label: t('stable') },
+          ]}
+          onChange={(v) => onChange('velocityDirection', v)}
+        />
+
         <label className="flex items-center gap-2 px-3 py-2 border border-[var(--border-default)] rounded-lg text-sm bg-[var(--bg-primary)] cursor-pointer">
           <input
             type="checkbox"

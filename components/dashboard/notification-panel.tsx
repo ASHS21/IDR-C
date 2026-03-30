@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useRef, useEffect } from 'react'
-import { Bell, CheckCheck, AlertTriangle, AlertCircle, Info, Shield, Clock, Wifi } from 'lucide-react'
+import { Bell, CheckCheck, AlertTriangle, AlertCircle, Info, Shield, Clock, Wifi, Loader2, Check, Eye, Search, RefreshCw, Play } from 'lucide-react'
 import { useNotifications, useUnreadCount, useMarkNotificationRead, useMarkAllRead } from '@/lib/hooks/use-notifications'
 import { formatRelativeTime } from '@/lib/utils/formatters'
 import type { Notification } from '@/lib/hooks/use-notifications'
@@ -22,6 +22,171 @@ const TYPE_ICONS: Record<string, typeof AlertTriangle> = {
   exception_expiring: Shield,
   ai_analysis_complete: Info,
   system: AlertCircle,
+  threat_detected: AlertCircle,
+}
+
+function ActionButton({
+  icon: Icon,
+  label,
+  onClick,
+  variant = 'default',
+}: {
+  icon: typeof Check
+  label: string
+  onClick: (e: React.MouseEvent) => void
+  variant?: 'default' | 'primary'
+}) {
+  const [loading, setLoading] = useState(false)
+  const [success, setSuccess] = useState(false)
+
+  const handleClick = async (e: React.MouseEvent) => {
+    e.stopPropagation()
+    if (loading || success) return
+    setLoading(true)
+    try {
+      await onClick(e)
+      setSuccess(true)
+      setTimeout(() => setSuccess(false), 2000)
+    } catch {
+      // error handled by caller
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <button
+      onClick={handleClick}
+      disabled={loading}
+      className={`inline-flex items-center gap-1 px-2 py-1 rounded text-micro font-medium transition-colors disabled:opacity-50 ${
+        variant === 'primary'
+          ? 'bg-[var(--color-info)] text-white hover:opacity-90'
+          : 'bg-[var(--bg-secondary)] text-[var(--text-secondary)] hover:bg-[var(--border-default)]'
+      }`}
+    >
+      {loading ? (
+        <Loader2 size={10} className="animate-spin" />
+      ) : success ? (
+        <Check size={10} className="text-green-500" />
+      ) : (
+        <Icon size={10} />
+      )}
+      {label}
+    </button>
+  )
+}
+
+function NotificationActions({
+  notification,
+  onActionComplete,
+}: {
+  notification: Notification
+  onActionComplete: () => void
+}) {
+  const router = useRouter()
+
+  const handleAcknowledge = async () => {
+    const violationId = (notification.metadata as any)?.violationId
+    if (!violationId) return
+    const res = await fetch('/api/actions/acknowledge', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ violationId }),
+    })
+    if (!res.ok) throw new Error('Failed to acknowledge')
+    onActionComplete()
+  }
+
+  const handleContain = async () => {
+    const threatId = (notification.metadata as any)?.threatId
+    if (!threatId) return
+    const res = await fetch(`/api/threats/${threatId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status: 'contained' }),
+    })
+    if (!res.ok) throw new Error('Failed to contain threat')
+    onActionComplete()
+  }
+
+  const handleRetrySync = async () => {
+    const sourceId = (notification.metadata as any)?.integrationId || (notification.metadata as any)?.sourceId
+    if (!sourceId) return
+    const res = await fetch(`/api/sync/${sourceId}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+    })
+    if (!res.ok) throw new Error('Failed to retry sync')
+    onActionComplete()
+  }
+
+  switch (notification.type) {
+    case 'violation_detected':
+      return (
+        <div className="flex items-center gap-1.5 mt-1.5">
+          <ActionButton icon={Check} label="Acknowledge" onClick={handleAcknowledge} />
+          <ActionButton
+            icon={Eye}
+            label="View"
+            onClick={(e) => {
+              e.stopPropagation()
+              const violationId = (notification.metadata as any)?.violationId
+              const identityId = (notification.metadata as any)?.identityId
+              if (identityId) {
+                router.push(`/dashboard/identities/${identityId}`)
+              } else {
+                router.push('/dashboard/violations')
+              }
+              onActionComplete()
+            }}
+          />
+        </div>
+      )
+
+    case 'threat_detected':
+      return (
+        <div className="flex items-center gap-1.5 mt-1.5">
+          <ActionButton
+            icon={Search}
+            label="Investigate"
+            onClick={(e) => {
+              e.stopPropagation()
+              const threatId = (notification.metadata as any)?.threatId
+              if (threatId) router.push(`/dashboard/threats/${threatId}`)
+              else router.push('/dashboard/threats')
+              onActionComplete()
+            }}
+          />
+          <ActionButton icon={Shield} label="Contain" onClick={handleContain} variant="primary" />
+        </div>
+      )
+
+    case 'certification_due':
+      return (
+        <div className="flex items-center gap-1.5 mt-1.5">
+          <ActionButton
+            icon={Play}
+            label="Start Review"
+            onClick={(e) => {
+              e.stopPropagation()
+              router.push('/dashboard/certifications')
+              onActionComplete()
+            }}
+            variant="primary"
+          />
+        </div>
+      )
+
+    case 'sync_failed':
+      return (
+        <div className="flex items-center gap-1.5 mt-1.5">
+          <ActionButton icon={RefreshCw} label="Retry Sync" onClick={handleRetrySync} variant="primary" />
+        </div>
+      )
+
+    default:
+      return null
+  }
 }
 
 function NotificationItem({
@@ -44,39 +209,47 @@ function NotificationItem({
     }
   }
 
+  const handleActionComplete = () => {
+    if (!notification.read) {
+      onRead(notification.id)
+    }
+  }
+
   return (
-    <button
-      onClick={handleClick}
+    <div
       className={`w-full text-left px-3 py-2.5 transition-colors hover:bg-[var(--bg-secondary)] ${
         !notification.read ? 'bg-[var(--bg-secondary)]/50' : ''
       }`}
     >
-      <div className="flex items-start gap-2.5">
-        <div className={`mt-0.5 ${severity.icon}`}>
-          <Icon size={14} />
-        </div>
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-1.5">
-            <p className={`text-caption leading-tight truncate ${
-              !notification.read
-                ? 'font-semibold text-[var(--text-primary)]'
-                : 'font-medium text-[var(--text-secondary)]'
-            }`}>
-              {notification.title}
-            </p>
-            {!notification.read && (
-              <span className={`flex-shrink-0 w-1.5 h-1.5 rounded-full ${severity.dot}`} />
-            )}
+      <button onClick={handleClick} className="w-full text-left">
+        <div className="flex items-start gap-2.5">
+          <div className={`mt-0.5 ${severity.icon}`}>
+            <Icon size={14} />
           </div>
-          <p className="text-micro text-[var(--text-tertiary)] mt-0.5 line-clamp-2">
-            {notification.message}
-          </p>
-          <p className="text-micro text-[var(--text-tertiary)] mt-1">
-            {formatRelativeTime(notification.createdAt)}
-          </p>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-1.5">
+              <p className={`text-caption leading-tight truncate ${
+                !notification.read
+                  ? 'font-semibold text-[var(--text-primary)]'
+                  : 'font-medium text-[var(--text-secondary)]'
+              }`}>
+                {notification.title}
+              </p>
+              {!notification.read && (
+                <span className={`flex-shrink-0 w-1.5 h-1.5 rounded-full ${severity.dot}`} />
+              )}
+            </div>
+            <p className="text-micro text-[var(--text-tertiary)] mt-0.5 line-clamp-2">
+              {notification.message}
+            </p>
+            <p className="text-micro text-[var(--text-tertiary)] mt-1">
+              {formatRelativeTime(notification.createdAt)}
+            </p>
+          </div>
         </div>
-      </div>
-    </button>
+      </button>
+      <NotificationActions notification={notification} onActionComplete={handleActionComplete} />
+    </div>
   )
 }
 

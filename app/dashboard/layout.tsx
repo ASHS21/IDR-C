@@ -3,6 +3,7 @@ import { Sidebar } from '@/components/dashboard/sidebar'
 import { Header } from '@/components/dashboard/header'
 import { CommandPalette } from '@/components/dashboard/command-palette'
 import { QuickStartChecklist } from '@/components/onboarding/quick-start-checklist'
+import { KeyboardShortcutsProvider } from '@/components/dashboard/keyboard-shortcuts-provider'
 
 const isDemoMode = process.env.NEXT_PUBLIC_DEMO_MODE === 'true'
 
@@ -12,6 +13,7 @@ export default function DashboardLayout({
   children: React.ReactNode
 }) {
   return (
+    <KeyboardShortcutsProvider>
     <div className="min-h-screen bg-[var(--bg-secondary)]">
       <Sidebar />
       <CommandPalette />
@@ -36,5 +38,6 @@ export default function DashboardLayout({
         </main>
       </div>
     </div>
+    </KeyboardShortcutsProvider>
   )
 }

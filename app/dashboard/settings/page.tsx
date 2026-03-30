@@ -7,7 +7,7 @@ import { useTranslations } from 'next-intl'
 import { ROLE_LABELS } from '@/lib/utils/rbac'
 import { hasRole } from '@/lib/utils/rbac'
 import { setLocale } from '@/lib/locale'
-import { Building2, Users, Plug, FileText, Bell, Key, Shield, Palette, Plus, Copy, Trash2 } from 'lucide-react'
+import { Building2, Users, Plug, FileText, Bell, Key, Shield, Palette, Plus, Copy, Trash2, Webhook, Loader2, TestTube2 } from 'lucide-react'
 import type { AppRole } from '@/lib/utils/rbac'
 import type { Locale } from '@/lib/locale'
 
@@ -25,6 +25,7 @@ export default function SettingsPage() {
     { key: 'notifications', label: t('notifications'), icon: Bell },
     { key: 'apikeys', label: t('apiKeys'), icon: Key },
     { key: 'audit', label: t('auditCompliance'), icon: Shield },
+    { key: 'webhooks', label: t('webhooks'), icon: Webhook },
     { key: 'appearance', label: t('appearance'), icon: Palette },
   ]
 
@@ -61,6 +62,7 @@ export default function SettingsPage() {
           {activeTab === 'policies' && <PoliciesTab />}
           {activeTab === 'notifications' && <NotificationsTab />}
           {activeTab === 'apikeys' && <ApiKeysTab userRole={userRole} />}
+          {activeTab === 'webhooks' && <WebhooksTab />}
           {activeTab === 'appearance' && <AppearanceTab />}
           {activeTab === 'integrations' && <p className="text-caption text-[var(--text-tertiary)]">{t('integrationsNote')}</p>}
           {activeTab === 'audit' && <AuditComplianceTab />}
@@ -314,6 +316,185 @@ function AuditComplianceTab() {
           <p className="text-body text-[var(--text-primary)]">{t('dataExport')}</p>
           <p className="text-caption text-[var(--text-tertiary)]">{t('dataExportDesc')}</p>
         </div>
+      </div>
+    </div>
+  )
+}
+
+const WEBHOOK_EVENT_TYPES = [
+  'violation_detected',
+  'threat_detected',
+  'sync_failed',
+  'certification_due',
+] as const
+
+function WebhooksTab() {
+  const queryClient = useQueryClient()
+  const t = useTranslations('settings')
+  const [showForm, setShowForm] = useState(false)
+  const [name, setName] = useState('')
+  const [url, setUrl] = useState('')
+  const [secret, setSecret] = useState('')
+  const [events, setEvents] = useState<string[]>([])
+
+  const { data } = useQuery({
+    queryKey: ['settings', 'webhooks'],
+    queryFn: async () => { const r = await fetch('/api/webhooks'); return r.json() },
+  })
+
+  const createMutation = useMutation({
+    mutationFn: async () => {
+      const r = await fetch('/api/webhooks', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, url, secret: secret || undefined, events }),
+      })
+      return r.json()
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['settings', 'webhooks'] })
+      setShowForm(false)
+      setName('')
+      setUrl('')
+      setSecret('')
+      setEvents([])
+    },
+  })
+
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const r = await fetch(`/api/webhooks/${id}`, { method: 'DELETE' })
+      return r.json()
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['settings', 'webhooks'] }),
+  })
+
+  const testMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const r = await fetch(`/api/webhooks/${id}`, { method: 'POST' })
+      return r.json()
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['settings', 'webhooks'] }),
+  })
+
+  const toggleEvent = (event: string) => {
+    setEvents(prev => prev.includes(event) ? prev.filter(e => e !== event) : [...prev, event])
+  }
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-4">
+        <h3 className="text-heading text-[var(--text-primary)]">{t('webhooksTitle')}</h3>
+        <button
+          onClick={() => setShowForm(!showForm)}
+          className="flex items-center gap-1 px-3 py-1.5 bg-[var(--color-info)] text-white rounded-[var(--radius-button)] text-caption font-medium hover:opacity-90"
+        >
+          <Plus size={14} /> {t('addWebhook')}
+        </button>
+      </div>
+
+      {showForm && (
+        <div className="mb-4 p-4 rounded-md bg-[var(--bg-secondary)] space-y-3">
+          <input
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder={t('webhookNamePlaceholder')}
+            className="w-full px-3 py-2 border border-[var(--border-default)] rounded-[var(--radius-input)] text-body bg-[var(--bg-primary)]"
+          />
+          <input
+            value={url}
+            onChange={(e) => setUrl(e.target.value)}
+            placeholder={t('webhookUrlPlaceholder')}
+            className="w-full px-3 py-2 border border-[var(--border-default)] rounded-[var(--radius-input)] text-body bg-[var(--bg-primary)]"
+          />
+          <input
+            value={secret}
+            onChange={(e) => setSecret(e.target.value)}
+            placeholder={t('webhookSecretPlaceholder')}
+            className="w-full px-3 py-2 border border-[var(--border-default)] rounded-[var(--radius-input)] text-body bg-[var(--bg-primary)]"
+          />
+          <div>
+            <p className="text-caption text-[var(--text-secondary)] mb-1.5">{t('webhookEvents')}</p>
+            <div className="flex flex-wrap gap-2">
+              {WEBHOOK_EVENT_TYPES.map(event => (
+                <button
+                  key={event}
+                  onClick={() => toggleEvent(event)}
+                  className={`px-2.5 py-1 rounded text-micro font-medium transition-colors ${
+                    events.includes(event)
+                      ? 'bg-[var(--color-info)] text-white'
+                      : 'bg-[var(--bg-primary)] border border-[var(--border-default)] text-[var(--text-secondary)]'
+                  }`}
+                >
+                  {event.replace(/_/g, ' ')}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="flex gap-2">
+            <button
+              onClick={() => createMutation.mutate()}
+              disabled={!name || !url || !events.length || createMutation.isPending}
+              className="px-4 py-2 bg-[var(--color-info)] text-white rounded-[var(--radius-button)] text-body font-medium hover:opacity-90 disabled:opacity-50"
+            >
+              {createMutation.isPending ? t('saving') : t('saveWebhook')}
+            </button>
+            <button
+              onClick={() => setShowForm(false)}
+              className="px-4 py-2 border border-[var(--border-default)] rounded-[var(--radius-button)] text-body text-[var(--text-secondary)]"
+            >
+              {t('cancelWebhook')}
+            </button>
+          </div>
+        </div>
+      )}
+
+      <div className="space-y-2">
+        {data?.webhooks?.map((wh: any) => (
+          <div key={wh.id} className="flex items-center justify-between p-3 rounded-md bg-[var(--bg-secondary)]">
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-2">
+                <p className="text-body font-medium text-[var(--text-primary)]">{wh.name}</p>
+                <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-micro font-medium ${
+                  wh.enabled ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'
+                }`}>
+                  {wh.enabled ? t('webhookEnabled') : t('webhookDisabled')}
+                </span>
+              </div>
+              <p className="text-micro text-[var(--text-tertiary)] truncate">{wh.url}</p>
+              <div className="flex items-center gap-2 mt-1">
+                <span className="text-micro text-[var(--text-tertiary)]">
+                  {wh.events?.join(', ')}
+                </span>
+                {wh.lastDeliveredAt && (
+                  <span className="text-micro text-[var(--text-tertiary)]">
+                    | Last: {new Date(wh.lastDeliveredAt).toLocaleDateString()} (HTTP {wh.lastStatus})
+                  </span>
+                )}
+              </div>
+            </div>
+            <div className="flex items-center gap-1 ms-3">
+              <button
+                onClick={() => testMutation.mutate(wh.id)}
+                disabled={testMutation.isPending}
+                className="p-1.5 text-[var(--color-info)] hover:bg-[var(--color-info-bg)] rounded"
+                title={t('testWebhook')}
+              >
+                {testMutation.isPending ? <Loader2 size={14} className="animate-spin" /> : <TestTube2 size={14} />}
+              </button>
+              <button
+                onClick={() => deleteMutation.mutate(wh.id)}
+                className="p-1.5 text-[var(--color-critical)] hover:bg-[var(--color-critical-bg)] rounded"
+                title={t('deleteWebhook')}
+              >
+                <Trash2 size={14} />
+              </button>
+            </div>
+          </div>
+        ))}
+        {!data?.webhooks?.length && (
+          <p className="text-caption text-[var(--text-tertiary)] py-4 text-center">{t('noWebhooks')}</p>
+        )}
       </div>
     </div>
   )
