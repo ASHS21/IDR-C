@@ -36,7 +36,7 @@ export async function GET(req: NextRequest) {
       db.select({ count: count() }).from(policyViolations).where(and(eq(policyViolations.orgId, orgId), gte(policyViolations.detectedAt, cutoff))),
       db.select({ count: count() }).from(policyViolations).where(and(eq(policyViolations.orgId, orgId), eq(policyViolations.status, 'remediated'), gte(policyViolations.remediatedAt, cutoff))),
       db.select({ count: count() }).from(identityThreats).where(and(eq(identityThreats.orgId, orgId), eq(identityThreats.status, 'active'))),
-      db.select().from(actionLog).where(and(eq(actionLog.orgId, orgId), gte(actionLog.performedAt, cutoff))).orderBy(desc(actionLog.performedAt)).limit(20),
+      db.select().from(actionLog).where(and(eq(actionLog.orgId, orgId), gte(actionLog.createdAt, cutoff))).orderBy(desc(actionLog.createdAt)).limit(20),
       db.select({ id: integrationSources.id, name: integrationSources.name, syncStatus: integrationSources.syncStatus }).from(integrationSources).where(eq(integrationSources.orgId, orgId)),
       db.select({
         bucket: sql<string>`CASE WHEN ${identities.riskScore} >= 80 THEN 'critical' WHEN ${identities.riskScore} >= 60 THEN 'high' WHEN ${identities.riskScore} >= 30 THEN 'medium' ELSE 'low' END`,
