@@ -7,7 +7,7 @@ import { useTranslations } from 'next-intl'
 import { ROLE_LABELS } from '@/lib/utils/rbac'
 import { hasRole } from '@/lib/utils/rbac'
 import { setLocale } from '@/lib/locale'
-import { Building2, Users, Plug, FileText, Bell, Key, Shield, Palette, Plus, Copy, Trash2, Webhook, Loader2, TestTube2 } from 'lucide-react'
+import { Building2, Users, Plug, FileText, Bell, Key, Shield, Palette, Plus, Copy, Trash2, Webhook, Loader2, TestTube2, Zap, ToggleLeft, ToggleRight } from 'lucide-react'
 import type { AppRole } from '@/lib/utils/rbac'
 import type { Locale } from '@/lib/locale'
 
@@ -26,6 +26,7 @@ export default function SettingsPage() {
     { key: 'apikeys', label: t('apiKeys'), icon: Key },
     { key: 'audit', label: t('auditCompliance'), icon: Shield },
     { key: 'webhooks', label: t('webhooks'), icon: Webhook },
+    { key: 'automation', label: t('automation') || 'Automation', icon: Zap },
     { key: 'appearance', label: t('appearance'), icon: Palette },
   ]
 
@@ -63,6 +64,7 @@ export default function SettingsPage() {
           {activeTab === 'notifications' && <NotificationsTab />}
           {activeTab === 'apikeys' && <ApiKeysTab userRole={userRole} />}
           {activeTab === 'webhooks' && <WebhooksTab />}
+          {activeTab === 'automation' && <AutomationTab />}
           {activeTab === 'appearance' && <AppearanceTab />}
           {activeTab === 'integrations' && <p className="text-caption text-[var(--text-tertiary)]">{t('integrationsNote')}</p>}
           {activeTab === 'audit' && <AuditComplianceTab />}
@@ -494,6 +496,144 @@ function WebhooksTab() {
         ))}
         {!data?.webhooks?.length && (
           <p className="text-caption text-[var(--text-tertiary)] py-4 text-center">{t('noWebhooks')}</p>
+        )}
+      </div>
+    </div>
+  )
+}
+
+function AutomationTab() {
+  const t = useTranslations('settings')
+  const queryClient = useQueryClient()
+  const [showCreate, setShowCreate] = useState(false)
+  const [newRule, setNewRule] = useState({ name: '', triggerType: 'threshold_breach', actionType: 'create_alert', enabled: true })
+
+  const { data } = useQuery({
+    queryKey: ['settings', 'automation-rules'],
+    queryFn: async () => { const r = await fetch('/api/automation-rules'); return r.json() },
+  })
+
+  const createMutation = useMutation({
+    mutationFn: async (rule: any) => {
+      const r = await fetch('/api/automation-rules', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(rule),
+      })
+      return r.json()
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['settings', 'automation-rules'] })
+      setShowCreate(false)
+      setNewRule({ name: '', triggerType: 'threshold_breach', actionType: 'create_alert', enabled: true })
+    },
+  })
+
+  const toggleMutation = useMutation({
+    mutationFn: async ({ id, enabled }: { id: string; enabled: boolean }) => {
+      await fetch(`/api/automation-rules/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ enabled }),
+      })
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['settings', 'automation-rules'] }),
+  })
+
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      await fetch(`/api/automation-rules/${id}`, { method: 'DELETE' })
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['settings', 'automation-rules'] }),
+  })
+
+  const TEMPLATES = [
+    { name: 'Auto-disable dormant accounts (90 days)', triggerType: 'time_elapsed', actionType: 'disable_identity', triggerCondition: { field: 'lastLogonAt', operator: '>', value: 90, unit: 'days' }, actionParams: { status: 'disabled' } },
+    { name: 'Alert on new Tier 0 access', triggerType: 'data_change', actionType: 'create_alert', triggerCondition: { field: 'adTierOfPermission', value: 'tier_0', event: 'created' }, actionParams: { severity: 'critical' } },
+    { name: 'Flag orphaned NHIs', triggerType: 'data_change', actionType: 'update_status', triggerCondition: { field: 'ownerStatus', value: 'disabled', identityType: 'non_human' }, actionParams: { status: 'orphaned' } },
+    { name: 'Escalate unacknowledged critical violations (4h)', triggerType: 'time_elapsed', actionType: 'notify', triggerCondition: { field: 'violationAge', operator: '>', value: 4, unit: 'hours', severity: 'critical', status: 'open' }, actionParams: { notifyRole: 'ciso' } },
+    { name: 'Weekly manager review reminder', triggerType: 'schedule', actionType: 'notify', triggerCondition: { cron: '0 9 * * 0' }, actionParams: { notifyRole: 'iam_admin', message: 'Weekly access review reminder' } },
+  ]
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h3 className="text-heading text-[var(--text-primary)]">{t('automation') || 'Automation Rules'}</h3>
+          <p className="text-caption text-[var(--text-tertiary)] mt-1">Define rules that execute automatically when conditions are met.</p>
+        </div>
+        <button onClick={() => setShowCreate(!showCreate)} className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-[var(--color-info)] text-white rounded-[var(--radius-button)]">
+          <Plus size={14} /> Create Rule
+        </button>
+      </div>
+
+      {showCreate && (
+        <div className="rounded-lg border p-4 space-y-3" style={{ borderColor: 'var(--border-default)', backgroundColor: 'var(--bg-secondary)' }}>
+          <input value={newRule.name} onChange={e => setNewRule(p => ({ ...p, name: e.target.value }))} placeholder="Rule name" className="w-full px-3 py-2 text-sm border rounded-lg" style={{ borderColor: 'var(--border-default)', backgroundColor: 'var(--bg-primary)', color: 'var(--text-primary)' }} />
+          <div className="grid grid-cols-2 gap-3">
+            <select value={newRule.triggerType} onChange={e => setNewRule(p => ({ ...p, triggerType: e.target.value }))} className="px-3 py-2 text-sm border rounded-lg" style={{ borderColor: 'var(--border-default)', backgroundColor: 'var(--bg-primary)', color: 'var(--text-primary)' }}>
+              <option value="threshold_breach">Threshold Breach</option>
+              <option value="data_change">Data Change</option>
+              <option value="time_elapsed">Time Elapsed</option>
+              <option value="schedule">Schedule</option>
+            </select>
+            <select value={newRule.actionType} onChange={e => setNewRule(p => ({ ...p, actionType: e.target.value }))} className="px-3 py-2 text-sm border rounded-lg" style={{ borderColor: 'var(--border-default)', backgroundColor: 'var(--bg-primary)', color: 'var(--text-primary)' }}>
+              <option value="create_alert">Create Alert</option>
+              <option value="disable_identity">Disable Identity</option>
+              <option value="update_status">Update Status</option>
+              <option value="notify">Notify</option>
+              <option value="create_violation">Create Violation</option>
+            </select>
+          </div>
+          <div className="flex gap-2">
+            <button onClick={() => createMutation.mutate({ ...newRule, triggerCondition: {}, actionParams: {} })} disabled={!newRule.name} className="px-4 py-2 text-xs font-medium bg-[var(--color-info)] text-white rounded-lg disabled:opacity-50">Save Rule</button>
+            <button onClick={() => setShowCreate(false)} className="px-4 py-2 text-xs font-medium rounded-lg" style={{ backgroundColor: 'var(--bg-tertiary)', color: 'var(--text-secondary)' }}>Cancel</button>
+          </div>
+        </div>
+      )}
+
+      {/* Pre-built templates */}
+      <div>
+        <h4 className="text-sm font-semibold text-[var(--text-secondary)] mb-3">Quick Templates</h4>
+        <div className="grid gap-2">
+          {TEMPLATES.map((tpl, i) => (
+            <div key={i} className="flex items-center justify-between p-3 rounded-lg border" style={{ borderColor: 'var(--border-default)', backgroundColor: 'var(--bg-primary)' }}>
+              <div>
+                <p className="text-xs font-medium text-[var(--text-primary)]">{tpl.name}</p>
+                <p className="text-[10px] text-[var(--text-tertiary)]">Trigger: {tpl.triggerType} → Action: {tpl.actionType}</p>
+              </div>
+              <button onClick={() => createMutation.mutate({ ...tpl, enabled: true })} className="px-3 py-1 text-[10px] font-medium rounded" style={{ backgroundColor: 'var(--bg-secondary)', color: 'var(--text-secondary)' }}>
+                Activate
+              </button>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Existing rules */}
+      <div>
+        <h4 className="text-sm font-semibold text-[var(--text-secondary)] mb-3">Active Rules</h4>
+        {data?.rules?.length > 0 ? (
+          <div className="space-y-2">
+            {data.rules.map((rule: any) => (
+              <div key={rule.id} className="flex items-center justify-between p-3 rounded-lg border" style={{ borderColor: rule.enabled ? 'var(--color-info)' : 'var(--border-default)', backgroundColor: 'var(--bg-primary)' }}>
+                <div className="flex items-center gap-3">
+                  <button onClick={() => toggleMutation.mutate({ id: rule.id, enabled: !rule.enabled })}>
+                    {rule.enabled ? <ToggleRight size={20} style={{ color: 'var(--color-info)' }} /> : <ToggleLeft size={20} style={{ color: 'var(--text-tertiary)' }} />}
+                  </button>
+                  <div>
+                    <p className="text-xs font-medium text-[var(--text-primary)]">{rule.name}</p>
+                    <p className="text-[10px] text-[var(--text-tertiary)]">Triggered {rule.triggerCount || 0} times {rule.lastTriggeredAt ? `· Last: ${new Date(rule.lastTriggeredAt).toLocaleDateString()}` : ''}</p>
+                  </div>
+                </div>
+                <button onClick={() => deleteMutation.mutate(rule.id)} className="p-1 rounded hover:bg-[var(--bg-secondary)]">
+                  <Trash2 size={14} style={{ color: 'var(--text-tertiary)' }} />
+                </button>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="text-caption text-[var(--text-tertiary)] py-4 text-center">No automation rules configured. Use a template above or create a custom rule.</p>
         )}
       </div>
     </div>
