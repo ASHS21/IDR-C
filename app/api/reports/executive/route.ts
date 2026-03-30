@@ -164,10 +164,14 @@ async function callOllama(metricsJson: string): Promise<any | null> {
       signal: AbortSignal.timeout(120000),
     })
 
-    if (!response.ok) return null
+    if (!response.ok) {
+      console.error('[Executive Report] Ollama error:', response.status, await response.text().catch(() => ''))
+      return null
+    }
     const result = await response.json()
     return parseAIResponse(result.message?.content || '')
-  } catch {
+  } catch (err) {
+    console.error('[Executive Report] Ollama call failed:', (err as Error).message)
     return null
   }
 }
