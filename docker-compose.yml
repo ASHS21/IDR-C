@@ -1,20 +1,107 @@
+# =============================================================================
+# Identity Radar — Full Stack Docker Compose
+# Services: db (PostgreSQL), ollama (AI model), init (migrations/seed), app (Next.js)
+#
+# Usage:
+#   docker compose up              # first run pulls ~4.4 GB AI model
+#   docker compose down            # stop (data persists)
+#   docker compose down -v         # stop + wipe all data (clean slate)
+# =============================================================================
+
 services:
-  postgres:
+  # ---------------------------------------------------------------------------
+  # PostgreSQL 16
+  # ---------------------------------------------------------------------------
+  db:
     image: postgres:16-alpine
-    container_name: identity-radar-db
+    container_name: idr-db
+    restart: unless-stopped
     ports:
       - "5432:5432"
     environment:
-      POSTGRES_DB: identity_radar
-      POSTGRES_USER: postgres
+      POSTGRES_DB: ${POSTGRES_DB:-identity_radar}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-identity_radar}"]
       interval: 5s
       timeout: 5s
       retries: 5
+      start_period: 10s
+
+  # ---------------------------------------------------------------------------
+  # Ollama — local LLM server (qwen2.5:7b)
+  # First run downloads ~4.4 GB model; cached in ollama_data volume afterwards.
+  # ---------------------------------------------------------------------------
+  ollama:
+    image: ollama/ollama:latest
+    container_name: idr-ollama
+    restart: unless-stopped
+    entrypoint: ["/bin/sh", "/entrypoint.sh"]
+    environment:
+      OLLAMA_MODEL: ${OLLAMA_MODEL:-qwen2.5:7b}
+    volumes:
+      - ollama_data:/root/.ollama
+      - ./docker/ollama-entrypoint.sh:/entrypoint.sh:ro
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:11434/api/tags || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 30s
+
+  # ---------------------------------------------------------------------------
+  # Init — one-shot container for schema push, views, and seed
+  # Exits after completion. Re-run is safe (idempotent).
+  # ---------------------------------------------------------------------------
+  init:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+      target: init
+    container_name: idr-init
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-identity_radar}
+      PGHOST: db
+      PGPORT: "5432"
+      PGUSER: ${POSTGRES_USER:-postgres}
+    restart: "no"
+
+  # ---------------------------------------------------------------------------
+  # Next.js Application
+  # ---------------------------------------------------------------------------
+  app:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+      target: runner
+    container_name: idr-app
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+      init:
+        condition: service_completed_successfully
+      ollama:
+        condition: service_healthy
+    ports:
+      - "3000:3000"
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-identity_radar}
+      NEXTAUTH_SECRET: ${NEXTAUTH_SECRET:-identity-radar-secret-key-change-in-production}
+      NEXTAUTH_URL: ${NEXTAUTH_URL:-http://localhost:3000}
+      AUTH_TRUST_HOST: "true"
+      OLLAMA_URL: http://ollama:11434
+      OLLAMA_MODEL: ${OLLAMA_MODEL:-qwen2.5:7b}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL:-http://localhost:3000}
+      NODE_ENV: production
 
 volumes:
   pgdata:
+  ollama_data:
