@@ -102,6 +102,30 @@ services:
       NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL:-http://localhost:3000}
       NODE_ENV: production
 
+  # ---------------------------------------------------------------------------
+  # Caddy — reverse proxy with automatic HTTPS (Let's Encrypt)
+  # Set DOMAIN env var to your FQDN (e.g., identityradar.alialmoharif.com)
+  # ---------------------------------------------------------------------------
+  caddy:
+    image: caddy:2-alpine
+    container_name: idr-caddy
+    restart: unless-stopped
+    depends_on:
+      app:
+        condition: service_started
+    environment:
+      DOMAIN: ${DOMAIN:-localhost}
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./docker/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+
 volumes:
   pgdata:
   ollama_data:
+  caddy_data:
+  caddy_config:
