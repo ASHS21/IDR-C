@@ -7,16 +7,12 @@ echo "[ollama] Starting Ollama server..."
 ollama serve &
 SERVER_PID=$!
 
-# Wait for server to be ready (use wget as fallback if curl unavailable)
+# Wait for server to be ready using 'ollama list' (curl/wget not available)
 echo "[ollama] Waiting for server to be ready..."
 for i in $(seq 1 120); do
-  if command -v curl >/dev/null 2>&1; then
-    curl -sf http://localhost:11434/api/tags >/dev/null 2>&1 && break
-  elif command -v wget >/dev/null 2>&1; then
-    wget -qO- http://localhost:11434/api/tags >/dev/null 2>&1 && break
-  else
-    # Last resort: try a raw TCP check via shell
-    (echo > /dev/tcp/localhost/11434) 2>/dev/null && break
+  if ollama list >/dev/null 2>&1; then
+    echo "[ollama] Server is ready."
+    break
   fi
   if [ "$i" -eq 120 ]; then
     echo "[ollama] ERROR: Server did not start within 120 seconds."
@@ -24,7 +20,6 @@ for i in $(seq 1 120); do
   fi
   sleep 1
 done
-echo "[ollama] Server is ready."
 
 # Check if model is already pulled
 if ollama list 2>/dev/null | grep -q "$MODEL"; then
