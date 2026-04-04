@@ -25,7 +25,9 @@
     "resultsHub": "Results Hub",
     "gpoTracking": "GPO Tracking",
     "dataQuality": "Data Quality",
-    "reports": "Reports"
+    "reports": "Reports",
+    "remediation": "Remediation",
+    "compliance": "Compliance"
   },
   "navSections": {
     "overview": "OVERVIEW",

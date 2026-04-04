@@ -9,7 +9,7 @@ import {
   AlertTriangle, Brain, TrendingUp, Plug, ScrollText, Settings,
   ChevronLeft, ChevronRight, Menu, X, Network,
   Route, Crosshair, UserX, MessageSquare, Link2, Radar, TableProperties, ShieldCheck,
-  Sparkles, BookOpen, Upload, FileText,
+  Sparkles, BookOpen, Upload, FileText, Wrench, Scale,
 } from 'lucide-react'
 
 const NAV_SECTIONS = [
@@ -33,11 +33,13 @@ const NAV_SECTIONS = [
       { href: '/dashboard/threats', labelKey: 'liveThreats' as const, icon: Crosshair },
       { href: '/dashboard/canaries', labelKey: 'canaryIdentities' as const, icon: AlertTriangle },
       { href: '/dashboard/violations', labelKey: 'violations' as const, icon: AlertTriangle },
+      { href: '/dashboard/remediation', labelKey: 'remediation' as const, icon: Wrench },
     ],
   },
   {
     labelKey: 'governance' as const,
     items: [
+      { href: '/dashboard/compliance', labelKey: 'compliance' as const, icon: Scale },
       { href: '/dashboard/certifications', labelKey: 'certifications' as const, icon: ClipboardCheck },
       { href: '/dashboard/nhi', labelKey: 'nhi' as const, icon: Bot },
       { href: '/dashboard/supply-chain', labelKey: 'supplyChain' as const, icon: Link2 },

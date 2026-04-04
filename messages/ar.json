@@ -24,7 +24,9 @@
     "supplyChain": "سلسلة التوريد",
     "resultsHub": "مركز النتائج",
     "gpoTracking": "تتبع سياسات المجموعة",
-    "dataQuality": "جودة البيانات"
+    "dataQuality": "جودة البيانات",
+    "remediation": "المعالجة",
+    "compliance": "الامتثال"
   },
   "navSections": {
     "overview": "نظرة عامة",
