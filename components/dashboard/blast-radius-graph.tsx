@@ -79,8 +79,8 @@ const TIER_EDGE_COLORS: Record<string, string> = {
   tier_2: '#94a3b8',
 }
 
-const RING_BG_OPACITY = [0.06, 0.04, 0.02]
-const RING_STROKE_OPACITY = [0.3, 0.2, 0.12]
+const RING_BG_OPACITY = [0.08, 0.05, 0.03]
+const RING_STROKE_OPACITY = [0.35, 0.25, 0.15]
 
 function getNodeColor(node: BlastRadiusNode): string {
   if (node.type === 'group') {
@@ -98,10 +98,10 @@ function getEdgeColor(node: BlastRadiusNode): string {
 }
 
 function nodeRadius(node: BlastRadiusNode): number {
-  if (node.tier === 'tier_0') return 8
-  if (node.tier === 'tier_1') return 6
-  if (node.criticality === 'critical') return 7
-  return 5
+  if (node.tier === 'tier_0') return 10
+  if (node.tier === 'tier_1') return 8
+  if (node.criticality === 'critical') return 9
+  return 7
 }
 
 // ── Component ──
@@ -123,7 +123,6 @@ export function BlastRadiusGraph({
     extra?: string
   } | null>(null)
   const [dimensions, setDimensions] = useState({ width: propWidth || 800, height: propHeight || 600 })
-  const [expandedNodes, setExpandedNodes] = useState<Set<string>>(new Set())
 
   // Responsive sizing
   useEffect(() => {
@@ -134,7 +133,7 @@ export function BlastRadiusGraph({
       const { width } = entries[0].contentRect
       setDimensions({
         width: propWidth || width,
-        height: propHeight || Math.max(500, Math.min(700, width * 0.7)),
+        height: propHeight || Math.max(550, Math.min(750, width * 0.75)),
       })
     })
     observer.observe(container)
@@ -150,7 +149,7 @@ export function BlastRadiusGraph({
 
     const cx = width / 2
     const cy = height / 2
-    const maxRadius = Math.min(cx, cy) - 50
+    const maxRadius = Math.min(cx, cy) - 60
 
     // ── Defs ──
     const defs = svg.append('defs')
@@ -162,10 +161,6 @@ export function BlastRadiusGraph({
         50% { transform: scale(1.15); opacity: 0.3; }
       }
       .br-center-pulse { animation: brPulse 2s ease-in-out infinite; transform-origin: center; }
-      @keyframes brRipple {
-        0% { r: 0; opacity: 0.6; }
-        100% { opacity: 0; }
-      }
     `)
 
     // Glow for center
@@ -188,6 +183,15 @@ export function BlastRadiusGraph({
     t0Merge.append('feMergeNode').attr('in', 'shadow')
     t0Merge.append('feMergeNode').attr('in', 'SourceGraphic')
 
+    // Arrow marker for edges
+    defs.append('marker')
+      .attr('id', 'br-arrow')
+      .attr('viewBox', '0 0 10 6').attr('refX', 10).attr('refY', 3)
+      .attr('markerWidth', 8).attr('markerHeight', 6)
+      .attr('orient', 'auto')
+      .append('path').attr('d', 'M0,0 L10,3 L0,6 Z')
+      .attr('fill', 'rgba(148,163,184,0.4)')
+
     const g = svg.append('g')
 
     // Zoom + pan
@@ -205,42 +209,47 @@ export function BlastRadiusGraph({
         .attr('cx', cx)
         .attr('cy', cy)
         .attr('r', ringRadius)
-        .attr('fill', `rgba(148, 163, 184, ${RING_BG_OPACITY[i - 1] || 0.02})`)
-        .attr('stroke', `rgba(148, 163, 184, ${RING_STROKE_OPACITY[i - 1] || 0.1})`)
-        .attr('stroke-width', 1)
-        .attr('stroke-dasharray', i > 1 ? '4,4' : 'none')
+        .attr('fill', `rgba(148, 163, 184, ${RING_BG_OPACITY[i - 1] || 0.03})`)
+        .attr('stroke', `rgba(148, 163, 184, ${RING_STROKE_OPACITY[i - 1] || 0.12})`)
+        .attr('stroke-width', 1.5)
+        .attr('stroke-dasharray', i > 1 ? '6,4' : 'none')
 
-      // Ring label
+      // Ring label — bigger and more visible
       const label = data.rings[i - 1]?.label || `Ring ${i}`
+      const nodeCount = data.rings[i - 1]?.nodes.length || 0
       g.append('text')
-        .text(`${label} (${data.rings[i - 1]?.nodes.length || 0})`)
+        .text(`${label} \u2022 ${nodeCount} nodes`)
         .attr('x', cx)
-        .attr('y', cy - ringRadius - 6)
+        .attr('y', cy - ringRadius - 10)
         .attr('text-anchor', 'middle')
-        .attr('fill', 'var(--text-tertiary)')
-        .attr('font-size', '10px')
-        .attr('font-weight', '500')
-        .attr('opacity', 0.6)
+        .attr('fill', 'var(--text-secondary)')
+        .attr('font-size', '11px')
+        .attr('font-weight', '600')
+        .attr('opacity', 0.8)
     }
 
     // ── Compute node positions on rings ──
-    const allNodePositions: Array<{
+    interface NodePosition {
       x: number
       y: number
       node: BlastRadiusNode
       ringLevel: number
-    }> = []
+    }
+
+    const allNodePositions: NodePosition[] = []
 
     data.rings.forEach((ring, ringIdx) => {
       const ringRadius = ((ringIdx + 1) / ringCount) * maxRadius
       const nodes = ring.nodes
+      // Add padding between nodes to prevent overlap
       const angleStep = (Math.PI * 2) / Math.max(nodes.length, 1)
 
-      // Sort: T0 nodes first, then by type
+      // Sort: T0 nodes first, then by type for visual grouping
       const sorted = [...nodes].sort((a, b) => {
         if (a.tier === 'tier_0' && b.tier !== 'tier_0') return -1
         if (b.tier === 'tier_0' && a.tier !== 'tier_0') return 1
-        return a.type.localeCompare(b.type)
+        if (a.type !== b.type) return a.type.localeCompare(b.type)
+        return 0
       })
 
       sorted.forEach((node, nodeIdx) => {
@@ -251,36 +260,51 @@ export function BlastRadiusGraph({
       })
     })
 
-    // ── Draw edges from center to ring 1 nodes, ring-to-ring ──
+    // ── Draw curved edges from center to nodes ──
     const edgeGroup = g.append('g').attr('class', 'edges')
 
     for (const pos of allNodePositions) {
       const edgeColor = getEdgeColor(pos.node)
       const ringLevel = pos.ringLevel
+      const isT0 = pos.node.tier === 'tier_0'
 
-      // Edge style by ring level
-      const dasharray = ringLevel === 1 ? 'none' : ringLevel === 2 ? '5,3' : '2,3'
-      const strokeWidth = ringLevel === 1 ? 1.2 : ringLevel === 2 ? 0.8 : 0.5
-      const opacity = pos.node.tier === 'tier_0' ? 0.7 : 0.25
+      // Edge style: thicker + more visible for T0, dashed for outer rings
+      const dasharray = ringLevel === 1 ? 'none' : ringLevel === 2 ? '6,3' : '3,3'
+      const strokeWidth = isT0 ? 2 : ringLevel === 1 ? 1.5 : 1
+      const opacity = isT0 ? 0.7 : ringLevel === 1 ? 0.4 : 0.2
 
-      edgeGroup.append('line')
-        .attr('x1', cx)
-        .attr('y1', cy)
-        .attr('x2', pos.x)
-        .attr('y2', pos.y)
+      // Use curved paths for better readability (less straight-line clutter)
+      const midX = (cx + pos.x) / 2
+      const midY = (cy + pos.y) / 2
+      // Offset the midpoint slightly for a curve effect
+      const dx = pos.x - cx
+      const dy = pos.y - cy
+      const dist = Math.sqrt(dx * dx + dy * dy)
+      const curveOffset = dist * 0.08
+      const perpX = -dy / dist * curveOffset
+      const perpY = dx / dist * curveOffset
+
+      const path = edgeGroup.append('path')
+        .attr('d', `M${cx},${cy} Q${midX + perpX},${midY + perpY} ${pos.x},${pos.y}`)
+        .attr('fill', 'none')
         .attr('stroke', edgeColor)
         .attr('stroke-width', strokeWidth)
         .attr('stroke-dasharray', dasharray)
         .attr('opacity', opacity)
+        .attr('data-node-id', pos.node.id)
+        .attr('data-orig-opacity', opacity)
+        .attr('data-orig-width', strokeWidth)
+
+      if (isT0) {
+        path.attr('marker-end', 'url(#br-arrow)')
+      }
     }
 
     // ── Ripple animation on load ──
     for (let i = 1; i <= ringCount; i++) {
       const ringRadius = (i / ringCount) * maxRadius
       const ripple = g.append('circle')
-        .attr('cx', cx)
-        .attr('cy', cy)
-        .attr('r', 0)
+        .attr('cx', cx).attr('cy', cy).attr('r', 0)
         .attr('fill', 'none')
         .attr('stroke', '#DC2626')
         .attr('stroke-width', 2)
@@ -310,10 +334,10 @@ export function BlastRadiusGraph({
       // T0 glow ring
       if (isT0) {
         el.append('circle')
-          .attr('r', r + 4)
+          .attr('r', r + 5)
           .attr('fill', 'none')
           .attr('stroke', '#DC2626')
-          .attr('stroke-width', 2)
+          .attr('stroke-width', 2.5)
           .attr('opacity', 0.6)
         el.attr('filter', 'url(#br-t0-glow)')
       }
@@ -323,27 +347,31 @@ export function BlastRadiusGraph({
         el.append('circle')
           .attr('r', r)
           .attr('fill', color)
-          .attr('stroke', isT0 ? '#DC2626' : 'rgba(255,255,255,0.3)')
-          .attr('stroke-width', isT0 ? 2 : 0.5)
+          .attr('stroke', isT0 ? '#DC2626' : 'rgba(255,255,255,0.4)')
+          .attr('stroke-width', isT0 ? 2.5 : 1)
       } else if (node.type === 'resource') {
         const s = r * 2
         el.append('rect')
           .attr('x', -s / 2).attr('y', -s / 2)
           .attr('width', s).attr('height', s)
-          .attr('rx', 2)
+          .attr('rx', 3)
           .attr('fill', isT0 ? '#DC2626' : node.tier === 'tier_1' ? '#EA580C' : color)
-          .attr('opacity', 0.85)
+          .attr('stroke', 'rgba(255,255,255,0.3)')
+          .attr('stroke-width', 1)
+          .attr('opacity', 0.9)
       } else if (node.type === 'group') {
         const s = r * 1.6
         el.append('rect')
           .attr('x', -s / 2).attr('y', -s / 2)
           .attr('width', s).attr('height', s)
-          .attr('rx', 1)
+          .attr('rx', 2)
           .attr('fill', color)
+          .attr('stroke', 'rgba(255,255,255,0.3)')
+          .attr('stroke-width', 1)
           .attr('transform', 'rotate(45)')
       }
 
-      // Hover
+      // Hover interactions
       el.on('mouseenter', function (event) {
         setTooltip({
           x: event.pageX,
@@ -351,62 +379,83 @@ export function BlastRadiusGraph({
           title: node.name,
           content: `Type: ${node.type}${node.subType ? ` (${node.subType.replace(/_/g, ' ')})` : ''}`,
           extra: [
-            node.tier ? `Tier: ${node.tier.replace('_', ' ')}` : null,
+            node.tier ? `Tier: ${node.tier.replace('_', ' ').toUpperCase()}` : null,
             node.accessType ? `Access: ${node.accessType}` : null,
             node.criticality ? `Criticality: ${node.criticality}` : null,
-          ].filter(Boolean).join(' | ') || undefined,
+          ].filter(Boolean).join(' \u2022 ') || undefined,
         })
+
+        // Raise node and highlight its edge
         d3.select(this).raise()
-        // Highlight edge to center
-        edgeGroup.selectAll('line').each(function () {
-          const line = d3.select(this)
-          const lx2 = parseFloat(line.attr('x2'))
-          const ly2 = parseFloat(line.attr('y2'))
-          if (Math.abs(lx2 - x) < 1 && Math.abs(ly2 - y) < 1) {
-            line.attr('opacity', 0.9).attr('stroke-width', 2.5)
+        edgeGroup.selectAll('path').each(function () {
+          const path = d3.select(this)
+          if (path.attr('data-node-id') === node.id) {
+            path.attr('opacity', 1).attr('stroke-width', 3)
+          } else {
+            path.attr('opacity', 0.05)
           }
         })
       })
+
       el.on('mouseleave', function () {
         setTooltip(null)
-        edgeGroup.selectAll('line').each(function () {
-          const line = d3.select(this)
-          const origOpacity = parseFloat(line.attr('data-orig-opacity') || '0.25')
-          const origWidth = parseFloat(line.attr('data-orig-width') || '1')
-          line.attr('opacity', origOpacity).attr('stroke-width', origWidth)
+        // Restore all edges
+        edgeGroup.selectAll('path').each(function () {
+          const path = d3.select(this)
+          path.attr('opacity', path.attr('data-orig-opacity'))
+          path.attr('stroke-width', path.attr('data-orig-width'))
         })
       })
+
       el.on('click', (event) => {
         event.stopPropagation()
         if (onNodeClick) onNodeClick(node)
       })
 
-      // Label for larger/important nodes (T0 or ring 1)
-      if (isT0 || pos.ringLevel === 1) {
+      // ── Labels: show for ALL nodes, with smarter truncation ──
+      const maxLabelLen = pos.ringLevel === 1 ? 16 : pos.ringLevel === 2 ? 12 : 10
+      const labelText = node.name.length > maxLabelLen
+        ? node.name.slice(0, maxLabelLen) + '\u2026'
+        : node.name
+      const labelSize = isT0 ? '10px' : pos.ringLevel === 1 ? '9px' : '8px'
+
+      // Background pill for label readability
+      const textNode = el.append('text')
+        .text(labelText)
+        .attr('y', r + 14)
+        .attr('text-anchor', 'middle')
+        .attr('fill', isT0 ? 'var(--text-primary)' : 'var(--text-secondary)')
+        .attr('font-size', labelSize)
+        .attr('font-weight', isT0 ? '700' : '500')
+        .attr('pointer-events', 'none')
+
+      // Tier badge below label for T0/T1 nodes
+      if (node.tier === 'tier_0' || node.tier === 'tier_1') {
+        const badgeColor = node.tier === 'tier_0' ? '#DC2626' : '#EA580C'
+        const badgeText = node.tier === 'tier_0' ? 'T0' : 'T1'
+        el.append('rect')
+          .attr('x', -10).attr('y', r + 18)
+          .attr('width', 20).attr('height', 12)
+          .attr('rx', 6)
+          .attr('fill', badgeColor)
+          .attr('opacity', 0.9)
         el.append('text')
-          .text(node.name.length > 14 ? node.name.slice(0, 14) + '..' : node.name)
-          .attr('y', r + 12)
+          .text(badgeText)
+          .attr('x', 0).attr('y', r + 26.5)
           .attr('text-anchor', 'middle')
-          .attr('fill', 'var(--text-secondary)')
-          .attr('font-size', '9px')
-          .attr('font-weight', '500')
+          .attr('fill', '#fff')
+          .attr('font-size', '8px')
+          .attr('font-weight', '700')
           .attr('pointer-events', 'none')
       }
     }
-
-    // Store orig opacity/width for restore on hover
-    edgeGroup.selectAll('line').each(function () {
-      const line = d3.select(this)
-      line.attr('data-orig-opacity', line.attr('opacity'))
-      line.attr('data-orig-width', line.attr('stroke-width'))
-    })
 
     // ── Center node ──
     const centerGroup = g.append('g').attr('transform', `translate(${cx}, ${cy})`)
 
     // Outer pulse ring
     centerGroup.append('circle')
-      .attr('r', 26)
+      .attr('r', 30)
       .attr('fill', 'none')
       .attr('stroke', '#DC2626')
       .attr('stroke-width', 2)
@@ -414,30 +463,44 @@ export function BlastRadiusGraph({
 
     centerGroup.attr('filter', 'url(#br-center-glow)')
 
-    // Main circle
+    // Main circle — bigger
     centerGroup.append('circle')
-      .attr('r', 20)
+      .attr('r', 24)
       .attr('fill', '#DC2626')
       .attr('stroke', '#fff')
-      .attr('stroke-width', 2.5)
+      .attr('stroke-width', 3)
 
-    // Center label
+    // Center name
+    const centerName = data.center.name.length > 14
+      ? data.center.name.slice(0, 14) + '\u2026'
+      : data.center.name
     centerGroup.append('text')
-      .text(data.center.name.length > 12 ? data.center.name.slice(0, 12) + '..' : data.center.name)
+      .text(centerName)
       .attr('text-anchor', 'middle')
-      .attr('dy', '0.35em')
+      .attr('dy', '-0.15em')
       .attr('fill', '#fff')
       .attr('font-size', '9px')
       .attr('font-weight', 'bold')
       .attr('pointer-events', 'none')
 
-    // Center subtitle
+    // Risk score inside center
     centerGroup.append('text')
       .text(`Risk: ${data.center.riskScore}`)
-      .attr('y', 30)
+      .attr('text-anchor', 'middle')
+      .attr('dy', '1.1em')
+      .attr('fill', 'rgba(255,255,255,0.8)')
+      .attr('font-size', '8px')
+      .attr('font-weight', '600')
+      .attr('pointer-events', 'none')
+
+    // Center tier label below
+    centerGroup.append('text')
+      .text(data.center.tier.replace('_', ' ').toUpperCase())
+      .attr('y', 36)
       .attr('text-anchor', 'middle')
       .attr('fill', 'var(--text-tertiary)')
-      .attr('font-size', '9px')
+      .attr('font-size', '10px')
+      .attr('font-weight', '600')
       .attr('pointer-events', 'none')
 
     // Center hover
@@ -449,11 +512,11 @@ export function BlastRadiusGraph({
           y: event.pageY,
           title: data.center.name,
           content: `Type: ${data.center.type}${data.center.subType ? ` (${data.center.subType.replace(/_/g, ' ')})` : ''}`,
-          extra: `Tier: ${data.center.tier.replace('_', ' ')} | Risk: ${data.center.riskScore}`,
+          extra: `Tier: ${data.center.tier.replace('_', ' ').toUpperCase()} \u2022 Risk: ${data.center.riskScore} \u2022 Reachable: ${data.stats.totalReachable}`,
         })
       })
       .on('mouseleave', () => setTooltip(null))
-  }, [data, dimensions, onNodeClick, expandedNodes])
+  }, [data, dimensions, onNodeClick])
 
   useEffect(() => { draw() }, [draw])
 
@@ -476,25 +539,25 @@ export function BlastRadiusGraph({
       />
 
       {/* Stats overlay (top-right) */}
-      <div className="absolute top-3 end-3 bg-[var(--bg-primary)] border border-[var(--border-default)] rounded-[var(--radius-badge)] p-3 space-y-1.5 text-micro select-none" style={{ boxShadow: 'var(--shadow-card)' }}>
-        <p className="text-[9px] font-semibold text-[var(--text-tertiary)] uppercase tracking-wide">Impact</p>
+      <div className="absolute top-3 end-3 bg-[var(--bg-primary)]/95 backdrop-blur-sm border border-[var(--border-default)] rounded-[var(--radius-badge)] p-3 space-y-1.5 text-micro select-none" style={{ boxShadow: 'var(--shadow-card)' }}>
+        <p className="text-[10px] font-bold text-[var(--text-tertiary)] uppercase tracking-wider">Impact Summary</p>
         <div className="flex items-center gap-2">
           <span className="text-[var(--text-secondary)]">Reachable:</span>
-          <span className="font-bold text-[var(--text-primary)]">{data.stats.totalReachable}</span>
+          <span className="font-bold text-[var(--text-primary)] text-sm">{data.stats.totalReachable}</span>
         </div>
         <div className="flex items-center gap-2">
           <span className="text-[var(--text-secondary)]">T0 Reachable:</span>
-          <span className="font-bold text-[var(--color-critical)]">{data.stats.t0Reachable}</span>
+          <span className="font-bold text-[var(--color-critical)] text-sm">{data.stats.t0Reachable}</span>
         </div>
         <div className="flex items-center gap-2">
           <span className="text-[var(--text-secondary)]">Blast Score:</span>
-          <span className={`font-bold ${data.stats.blastRadiusScore >= 70 ? 'text-[var(--color-critical)]' : data.stats.blastRadiusScore >= 40 ? 'text-[var(--color-warning)]' : 'text-[var(--text-primary)]'}`}>
-            {data.stats.blastRadiusScore}
+          <span className={`font-bold text-sm ${data.stats.blastRadiusScore >= 70 ? 'text-[var(--color-critical)]' : data.stats.blastRadiusScore >= 40 ? 'text-[var(--color-warning)]' : 'text-[var(--text-primary)]'}`}>
+            {data.stats.blastRadiusScore}/100
           </span>
         </div>
         <div className="flex items-center gap-2">
           <span className="text-[var(--text-secondary)]">Highest Tier:</span>
-          <span className={`font-bold ${data.stats.highestTier === 'tier_0' ? 'text-[var(--color-critical)]' : ''}`}>
+          <span className={`font-bold text-sm ${data.stats.highestTier === 'tier_0' ? 'text-[var(--color-critical)]' : ''}`}>
             {data.stats.highestTier?.replace('_', ' ').toUpperCase() || 'N/A'}
           </span>
         </div>
@@ -514,12 +577,12 @@ export function BlastRadiusGraph({
       {/* Tooltip */}
       {tooltip && (
         <div
-          className="fixed z-50 bg-[var(--bg-primary)] border border-[var(--border-default)] rounded-[var(--radius-card)] p-3 pointer-events-none max-w-[280px]"
+          className="fixed z-50 bg-[var(--bg-primary)]/95 backdrop-blur-sm border border-[var(--border-default)] rounded-[var(--radius-card)] p-3 pointer-events-none max-w-[300px]"
           style={{ left: tooltip.x + 14, top: tooltip.y + 14, boxShadow: 'var(--shadow-dropdown)' }}
         >
-          <p className="text-caption font-semibold text-[var(--text-primary)]">{tooltip.title}</p>
+          <p className="text-caption font-bold text-[var(--text-primary)]">{tooltip.title}</p>
           <p className="text-micro text-[var(--text-secondary)] mt-0.5">{tooltip.content}</p>
-          {tooltip.extra && <p className="text-micro text-[var(--text-tertiary)] mt-0.5">{tooltip.extra}</p>}
+          {tooltip.extra && <p className="text-micro text-[var(--text-tertiary)] mt-1">{tooltip.extra}</p>}
         </div>
       )}
     </div>
