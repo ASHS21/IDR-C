@@ -43,7 +43,7 @@ export const GET = withApiHandler(async (req: NextRequest, { orgId, log }) => {
  * Activate a template by creating an automation rule from it.
  * Body: { templateId: string }
  */
-export const POST = withApiHandler(async (req: NextRequest, { orgId, log }) => {
+export const POST = withApiHandler(async (req: NextRequest, { orgId, session, log }) => {
   const body = await req.json()
   const { templateId } = body
 
@@ -82,6 +82,7 @@ export const POST = withApiHandler(async (req: NextRequest, { orgId, log }) => {
     actionParams: template.actionParams,
     notifyTargets: template.notifyTargets,
     enabled: true,
+    createdBy: session.user.id,
     orgId,
   }).returning()
 
