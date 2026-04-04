@@ -5,6 +5,9 @@ import { integrationSources, actionLog } from '@/lib/db/schema'
 import { eq, and } from 'drizzle-orm'
 import { createConnector } from '@/lib/connectors/factory'
 import { syncToDatabase } from '@/lib/connectors/transformer'
+import { hasRole } from '@/lib/utils/rbac'
+import type { AppRole } from '@/lib/utils/rbac'
+import { safeDecryptCredentials } from '@/lib/crypto/credentials'
 
 export async function POST(
   request: NextRequest,
@@ -13,6 +16,9 @@ export async function POST(
   const session = await auth()
   if (!session?.user?.orgId) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+  if (!hasRole((session.user as any).appRole as AppRole, 'iam_admin')) {
+    return NextResponse.json({ error: 'Forbidden: iam_admin role required to trigger sync' }, { status: 403 })
   }
 
   const { source: sourceType } = await params
@@ -51,8 +57,8 @@ export async function POST(
     .where(eq(integrationSources.id, integrationId))
 
   try {
-    // Create connector from stored config
-    const config = (integration.config || {}) as Record<string, string>
+    // Decrypt and create connector from stored config
+    const config = safeDecryptCredentials(integration.config) as Record<string, string>
     const connector = createConnector({
       type: integration.type as any,
       credentials: config,

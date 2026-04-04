@@ -140,6 +140,7 @@ async function callAnthropic(prompt: string): Promise<any | null> {
         system: SYSTEM_PROMPT,
         messages: [{ role: 'user', content: prompt }],
       }),
+      signal: AbortSignal.timeout(60000), // 60 second timeout
     })
 
     if (!response.ok) return null
