@@ -17,10 +17,11 @@
 
 import { db } from '@/lib/db'
 import {
-  identities, entitlements, policyViolations, remediationPlans, actionLog,
+  identities, entitlements, policyViolations, remediationPlans,
 } from '@/lib/db/schema'
 import { eq, and, desc, sql, count } from 'drizzle-orm'
 import { logger } from '@/lib/logger'
+import { logAction } from '@/lib/actions/helpers'
 
 const log = logger.child({ module: 'tier-remediation' })
 
