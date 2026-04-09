@@ -49,3 +49,6 @@ export * from './briefings'
 
 // Automation Rules Engine
 export * from './automation-rules'
+
+// Active Sessions (for session management)
+export * from './active-sessions'
