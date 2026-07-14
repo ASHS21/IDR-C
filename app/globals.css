@@ -2,6 +2,11 @@
 
 /* ── Design Tokens ── */
 :root {
+  /* Fonts — system stacks (no network/Google Fonts; air-gapped friendly) */
+  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+  --font-arabic: "Segoe UI", Tahoma, "Geeza Pro", "Noto Sans Arabic", system-ui, sans-serif;
+
   /* Backgrounds */
   --bg-primary: #FFFFFF;
   --bg-secondary: #F8F9FB;

@@ -5,13 +5,13 @@ import { usePathname } from 'next/navigation'
 import { useState } from 'react'
 import { useTranslations } from 'next-intl'
 import {
-  LayoutDashboard, Users, Bot, UsersRound, Shield, Key, ClipboardCheck,
-  AlertTriangle, Brain, TrendingUp, Plug, ScrollText, Settings,
-  ChevronLeft, ChevronRight, Menu, X, Network,
-  Route, Crosshair, UserX, MessageSquare, Link2, Radar, TableProperties, ShieldCheck,
-  Sparkles, BookOpen, Upload, FileText,
+  LayoutDashboard, Users, Shield, Key, AlertTriangle, Plug, ScrollText, Settings,
+  ChevronLeft, ChevronRight, Menu, X, Network, Route, Radar,
+  Upload, Scale, ShieldAlert, Compass, ListChecks,
 } from 'lucide-react'
 
+// MVP nav — trimmed to the essence. Deferred pages remain in the repo and load by direct URL;
+// they're just not surfaced here (re-add a line to re-enable).
 const NAV_SECTIONS = [
   {
     labelKey: 'posture' as const,
@@ -20,47 +20,32 @@ const NAV_SECTIONS = [
       { href: '/dashboard/identities', labelKey: 'identities' as const, icon: Users },
       { href: '/dashboard/tiering', labelKey: 'tiering' as const, icon: Shield },
       { href: '/dashboard/entitlements', labelKey: 'entitlements' as const, icon: Key },
-      { href: '/dashboard/shadow-admins', labelKey: 'shadowAdmins' as const, icon: UserX },
+      { href: '/dashboard/exposures', labelKey: 'exposures' as const, icon: ShieldAlert },
+    ],
+  },
+  {
+    labelKey: 'attackSurface' as const,
+    items: [
       { href: '/dashboard/attack-paths', labelKey: 'attackPaths' as const, icon: Route },
       { href: '/dashboard/blast-radius', labelKey: 'blastRadius' as const, icon: Radar },
-      { href: '/dashboard/peer-analysis', labelKey: 'peerAnomalies' as const, icon: TrendingUp },
-      { href: '/dashboard/gpo', labelKey: 'gpoTracking' as const, icon: ShieldCheck },
-    ],
-  },
-  {
-    labelKey: 'threats' as const,
-    items: [
-      { href: '/dashboard/threats', labelKey: 'liveThreats' as const, icon: Crosshair },
-      { href: '/dashboard/canaries', labelKey: 'canaryIdentities' as const, icon: AlertTriangle },
-      { href: '/dashboard/violations', labelKey: 'violations' as const, icon: AlertTriangle },
-    ],
-  },
-  {
-    labelKey: 'governance' as const,
-    items: [
-      { href: '/dashboard/certifications', labelKey: 'certifications' as const, icon: ClipboardCheck },
-      { href: '/dashboard/nhi', labelKey: 'nhi' as const, icon: Bot },
-      { href: '/dashboard/supply-chain', labelKey: 'supplyChain' as const, icon: Link2 },
-    ],
-  },
-  {
-    labelKey: 'intelligence' as const,
-    items: [
-      { href: '/dashboard/results', labelKey: 'resultsHub' as const, icon: TableProperties },
-      { href: '/dashboard/ai', labelKey: 'ai' as const, icon: Brain },
-      { href: '/dashboard/ai-chat', labelKey: 'aiChat' as const, icon: MessageSquare },
       { href: '/dashboard/graph', labelKey: 'graph' as const, icon: Network },
-      { href: '/dashboard/reports', labelKey: 'reports' as const, icon: FileText },
+      { href: '/dashboard/graph-explorer', labelKey: 'graphExplorer' as const, icon: Compass },
+    ],
+  },
+  {
+    labelKey: 'findings' as const,
+    items: [
+      { href: '/dashboard/issues', labelKey: 'issues' as const, icon: ListChecks },
+      { href: '/dashboard/violations', labelKey: 'violations' as const, icon: AlertTriangle },
+      { href: '/dashboard/compliance', labelKey: 'compliance' as const, icon: Scale },
     ],
   },
   {
     labelKey: 'operations' as const,
     items: [
       { href: '/dashboard/import', labelKey: 'import' as const, icon: Upload },
-      { href: '/dashboard/data-quality', labelKey: 'dataQuality' as const, icon: Sparkles },
       { href: '/dashboard/integrations', labelKey: 'integrations' as const, icon: Plug },
       { href: '/dashboard/audit', labelKey: 'audit' as const, icon: ScrollText },
-      { href: '/dashboard/docs', labelKey: 'docs' as const, icon: BookOpen },
       { href: '/dashboard/settings', labelKey: 'settings' as const, icon: Settings },
     ],
   },

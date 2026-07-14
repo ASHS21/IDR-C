@@ -182,7 +182,7 @@ async function callAnthropicDetect(prompt: string): Promise<DetectionResult | nu
         'anthropic-version': '2023-06-01',
       },
       body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
+        model: process.env.ANTHROPIC_MODEL || 'claude-sonnet-4-20250514',
         max_tokens: 1024,
         system: SMART_CSV_PARSER_PROMPT,
         messages: [{ role: 'user', content: prompt }],

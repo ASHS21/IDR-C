@@ -12,35 +12,9 @@ import { IntegrationHealthStrip } from '@/components/dashboard/integration-healt
 import { CardSkeleton } from '@/components/ui/skeleton'
 import { getRiskLevel } from '@/lib/utils/constants'
 import Link from 'next/link'
-import { AlertTriangle, Shield, TrendingUp, Users, Crosshair, Route, UserX, Sparkles, Sun, ChevronDown, ChevronUp } from 'lucide-react'
+import { AlertTriangle, Route, ShieldAlert, Sun, ChevronDown, ChevronUp } from 'lucide-react'
 import { ExportPdfButton } from '@/components/dashboard/export-pdf-button'
 import { useState } from 'react'
-
-function LowQualityBanner() {
-  const { data } = useQuery<{ completenessDistribution: { low: number; unscored: number } }>({
-    queryKey: ['data-quality', 'stats'],
-    queryFn: async () => {
-      const res = await fetch('/api/data-quality/stats')
-      if (!res.ok) throw new Error('Failed')
-      return res.json()
-    },
-    staleTime: 60_000,
-  })
-  const count = (data?.completenessDistribution?.low ?? 0) + (data?.completenessDistribution?.unscored ?? 0)
-  if (!count) return null
-  return (
-    <Link
-      href="/dashboard/data-quality"
-      className="flex items-center gap-3 rounded-[var(--radius-card)] border border-[var(--color-medium)] bg-[var(--color-medium-bg)] p-3 hover:opacity-90 transition-opacity"
-    >
-      <Sparkles size={16} style={{ color: 'var(--color-medium)' }} />
-      <p className="text-caption text-[var(--text-primary)]">
-        <span className="font-semibold">{count}</span> identities have low data quality.{' '}
-        <span className="text-[var(--color-info)] font-medium">Improve →</span>
-      </p>
-    </Link>
-  )
-}
 
 function TodaysBriefing() {
   const [expanded, setExpanded] = useState(false)
@@ -177,21 +151,19 @@ export default function DashboardOverview() {
       </div>
 
       {/* Low Data Quality Banner */}
-      <LowQualityBanner />
-
       {/* Today's Briefing */}
       <TodaysBriefing />
 
-      {/* Threat & Attack Surface Metrics */}
-      {(data.activeThreats > 0 || data.attackPathsCount > 0 || data.shadowAdminCount > 0) && (
+      {/* Exposure & Attack Surface Metrics */}
+      {(data.exposuresCount > 0 || data.attackPathsCount > 0 || data.activeViolations > 0) && (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <Link href="/dashboard/threats" className="rounded-[var(--radius-card)] border border-[var(--border-default)] bg-[var(--bg-primary)] p-4 flex items-center gap-4 hover:border-[var(--border-hover)] transition-colors" style={{ boxShadow: 'var(--shadow-card)' }}>
-            <div className="w-10 h-10 rounded-lg flex items-center justify-center" style={{ backgroundColor: data.activeThreats > 0 ? 'var(--color-critical-bg)' : 'var(--color-low-bg)' }}>
-              <Crosshair size={20} style={{ color: data.activeThreats > 0 ? 'var(--color-critical)' : 'var(--color-low)' }} />
+          <Link href="/dashboard/exposures" className="rounded-[var(--radius-card)] border border-[var(--border-default)] bg-[var(--bg-primary)] p-4 flex items-center gap-4 hover:border-[var(--border-hover)] transition-colors" style={{ boxShadow: 'var(--shadow-card)' }}>
+            <div className="w-10 h-10 rounded-lg flex items-center justify-center" style={{ backgroundColor: data.exposuresCount > 0 ? 'var(--color-high-bg)' : 'var(--color-low-bg)' }}>
+              <ShieldAlert size={20} style={{ color: data.exposuresCount > 0 ? 'var(--color-high)' : 'var(--color-low)' }} />
             </div>
             <div>
-              <p className="text-heading font-semibold text-[var(--text-primary)]">{data.activeThreats}</p>
-              <p className="text-micro text-[var(--text-tertiary)]">Active Threats</p>
+              <p className="text-heading font-semibold text-[var(--text-primary)]">{data.exposuresCount}</p>
+              <p className="text-micro text-[var(--text-tertiary)]">AD Exposures</p>
             </div>
           </Link>
           <Link href="/dashboard/attack-paths" className="rounded-[var(--radius-card)] border border-[var(--border-default)] bg-[var(--bg-primary)] p-4 flex items-center gap-4 hover:border-[var(--border-hover)] transition-colors" style={{ boxShadow: 'var(--shadow-card)' }}>
@@ -203,13 +175,13 @@ export default function DashboardOverview() {
               <p className="text-micro text-[var(--text-tertiary)]">Attack Paths</p>
             </div>
           </Link>
-          <Link href="/dashboard/shadow-admins" className="rounded-[var(--radius-card)] border border-[var(--border-default)] bg-[var(--bg-primary)] p-4 flex items-center gap-4 hover:border-[var(--border-hover)] transition-colors" style={{ boxShadow: 'var(--shadow-card)' }}>
-            <div className="w-10 h-10 rounded-lg flex items-center justify-center" style={{ backgroundColor: data.shadowAdminCount > 0 ? 'var(--color-high-bg)' : 'var(--color-low-bg)' }}>
-              <UserX size={20} style={{ color: data.shadowAdminCount > 0 ? 'var(--color-high)' : 'var(--color-low)' }} />
+          <Link href="/dashboard/violations" className="rounded-[var(--radius-card)] border border-[var(--border-default)] bg-[var(--bg-primary)] p-4 flex items-center gap-4 hover:border-[var(--border-hover)] transition-colors" style={{ boxShadow: 'var(--shadow-card)' }}>
+            <div className="w-10 h-10 rounded-lg flex items-center justify-center" style={{ backgroundColor: data.activeViolations > 0 ? 'var(--color-high-bg)' : 'var(--color-low-bg)' }}>
+              <AlertTriangle size={20} style={{ color: data.activeViolations > 0 ? 'var(--color-high)' : 'var(--color-low)' }} />
             </div>
             <div>
-              <p className="text-heading font-semibold text-[var(--text-primary)]">{data.shadowAdminCount}</p>
-              <p className="text-micro text-[var(--text-tertiary)]">Shadow Admins</p>
+              <p className="text-heading font-semibold text-[var(--text-primary)]">{data.activeViolations}</p>
+              <p className="text-micro text-[var(--text-tertiary)]">Open Violations</p>
             </div>
           </Link>
         </div>

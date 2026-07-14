@@ -135,11 +135,12 @@ async function callAnthropic(prompt: string): Promise<any | null> {
         'anthropic-version': '2023-06-01',
       },
       body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
+        model: process.env.ANTHROPIC_MODEL || 'claude-sonnet-4-20250514',
         max_tokens: 4096,
         system: SYSTEM_PROMPT,
         messages: [{ role: 'user', content: prompt }],
       }),
+      signal: AbortSignal.timeout(60000), // 60 second timeout
     })
 
     if (!response.ok) return null

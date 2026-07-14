@@ -292,6 +292,7 @@ async function upsertIdentities(
         department: raw.department || null,
         lastLogonAt: raw.lastLogonAt || null,
         passwordLastSetAt: raw.passwordLastSetAt || null,
+        adSecurity: raw.adSecurity ?? null,
         orgId,
         updatedAt: new Date(),
       }

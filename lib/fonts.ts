@@ -1,22 +1,10 @@
-import { IBM_Plex_Sans, IBM_Plex_Mono, IBM_Plex_Sans_Arabic } from 'next/font/google'
+// Air-gapped friendly: no next/font/google (which fetches from Google at build/dev time and
+// hangs in offline/restricted environments). The actual font stacks are defined as the
+// --font-sans / --font-mono / --font-arabic CSS variables in app/globals.css.
+//
+// These shims preserve the `.variable` className interface used by app/layout.tsx, so no other
+// code needs to change. The classNames are intentionally empty — the variables live in :root.
 
-export const plexSans = IBM_Plex_Sans({
-  subsets: ['latin'],
-  weight: ['400', '500', '600', '700'],
-  variable: '--font-sans',
-  display: 'swap',
-})
-
-export const plexMono = IBM_Plex_Mono({
-  subsets: ['latin'],
-  weight: ['400', '500'],
-  variable: '--font-mono',
-  display: 'swap',
-})
-
-export const plexArabic = IBM_Plex_Sans_Arabic({
-  subsets: ['arabic'],
-  weight: ['400', '500', '600', '700'],
-  variable: '--font-arabic',
-  display: 'swap',
-})
+export const plexSans = { variable: '' }
+export const plexMono = { variable: '' }
+export const plexArabic = { variable: '' }

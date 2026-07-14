@@ -123,7 +123,7 @@ async function callAnthropic(context: string): Promise<any | null> {
         'anthropic-version': '2023-06-01',
       },
       body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
+        model: process.env.ANTHROPIC_MODEL || 'claude-sonnet-4-20250514',
         max_tokens: 2048,
         system: THREAT_TRIAGE_PROMPT,
         messages: [{ role: 'user', content: context }],

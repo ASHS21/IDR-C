@@ -77,3 +77,25 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
   CMD curl -f http://localhost:3000/api/health || exit 1
 
 CMD ["node", "server.js"]
+
+# ---------------------------------------------------------------------------
+# Stage 4: Init container (schema push + views + seed)
+# Used as a one-shot service in docker-compose to initialise the database.
+# Retains full node_modules (drizzle-kit, tsx) needed for migrations.
+# ---------------------------------------------------------------------------
+FROM node:20-alpine AS init
+WORKDIR /app
+
+RUN apk add --no-cache postgresql16-client
+
+COPY --from=deps /app/node_modules ./node_modules
+COPY --from=builder /app/package.json ./package.json
+COPY --from=builder /app/tsconfig.json ./tsconfig.json
+COPY --from=builder /app/drizzle.config.ts ./drizzle.config.ts
+COPY --from=builder /app/drizzle ./drizzle
+COPY --from=builder /app/lib ./lib
+COPY --from=builder /app/seed ./seed
+COPY docker/init-db.sh /init-db.sh
+RUN chmod +x /init-db.sh
+
+ENTRYPOINT ["/init-db.sh"]

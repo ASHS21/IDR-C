@@ -71,6 +71,10 @@ export const severityEnum = pgEnum('severity_level', ['critical', 'high', 'mediu
 export const violationTypeEnum = pgEnum('violation_type', [
   'tier_breach', 'sod_conflict', 'excessive_privilege', 'dormant_access',
   'orphaned_identity', 'missing_mfa', 'expired_certification', 'password_age',
+  // AD exposure / posture checks (fsProtect-parity static assessment)
+  'kerberoastable', 'asrep_roastable', 'unconstrained_delegation',
+  'constrained_delegation', 'reversible_encryption', 'password_not_required',
+  'password_never_expires', 'stale_privileged_account',
 ])
 export const violationStatusEnum = pgEnum('violation_status', [
   'open', 'acknowledged', 'remediated', 'excepted', 'false_positive',
@@ -92,6 +96,7 @@ export const actionTypeEnum = pgEnum('action_type', [
   'assess_identity', 'certify_entitlement', 'revoke_access', 'approve_exception',
   'escalate_risk', 'trigger_review', 'update_tier', 'sync_source',
   'generate_recommendation', 'acknowledge_violation',
+  'login_success', 'login_failed',
 ])
 export const actionSourceEnum = pgEnum('action_source', ['manual', 'automated', 'ai_recommended'])
 
@@ -137,3 +142,20 @@ export const canaryTypeEnum = pgEnum('canary_type', [
 // Data quality enums (Phase E2)
 export const matchMethodEnum = pgEnum('match_method', ['deterministic', 'fuzzy', 'ai', 'manual'])
 export const aliasStatusEnum = pgEnum('alias_status', ['pending_review', 'confirmed', 'rejected'])
+
+// Issue lifecycle enums (fsProtect-parity: managed finding workflow + timeline)
+export const issueStatusEnum = pgEnum('issue_status', [
+  'no_action', 'in_progress', 'done', 'accepted_risk',
+])
+export const issueEventTypeEnum = pgEnum('issue_event_type', [
+  'first_detected', 'risk_increased', 'reappeared',
+  'partially_remediated', 'fully_remediated', 'status_changed',
+])
+
+// AD Exposure assessment enums (fsProtect-parity: certificate/GPO/secret findings)
+export const exposureCategoryEnum = pgEnum('exposure_category', [
+  'identity', 'certificate', 'gpo', 'secret',
+])
+export const exposureImpactEnum = pgEnum('exposure_impact', [
+  'credential_theft', 'privilege_escalation', 'lateral_movement', 'persistence',
+])

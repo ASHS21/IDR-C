@@ -30,6 +30,7 @@ export const gpoObjects = pgTable('gpo_objects', {
   description: text('description'),
   securityFiltering: jsonb('security_filtering'),
   wmiFilter: text('wmi_filter'),
+  settings: jsonb('settings'), // effective security settings { key: value } — used for RSoP + baseline drift
   orgId: uuid('org_id').notNull().references(() => organizations.id),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),

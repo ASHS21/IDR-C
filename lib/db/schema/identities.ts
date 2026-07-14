@@ -36,6 +36,7 @@ export const identities = pgTable('identities', {
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   dataQuality: jsonb('data_quality'), // { score, completeness, freshness, accuracy, fields: { [name]: { filled, source, confidence, lastUpdated } } }
+  adSecurity: jsonb('ad_security'), // { uac, spn: string[], adminCount, allowedToDelegateTo: string[], rbcd: boolean, supportedEncTypes } — raw AD security attrs for posture checks
 }, (table) => [
   index('idx_identities_org_id').on(table.orgId),
   index('idx_identities_type').on(table.type),

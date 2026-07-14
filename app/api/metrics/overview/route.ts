@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { auth } from '@/lib/auth/config'
 import { db } from '@/lib/db'
-import { identities, policyViolations, entitlements, integrationSources, identityThreats, attackPaths, shadowAdmins } from '@/lib/db/schema'
+import { identities, policyViolations, entitlements, integrationSources, identityThreats, attackPaths, shadowAdmins, exposureFindings } from '@/lib/db/schema'
 import { eq, and, count, desc, sql, avg } from 'drizzle-orm'
 
 export async function GET() {
@@ -24,6 +24,7 @@ export async function GET() {
     activeThreatsResult,
     attackPathsResult,
     shadowAdminsResult,
+    exposuresResult,
     riskDistribution,
   ] = await Promise.all([
     // Identity counts by type
@@ -107,6 +108,12 @@ export async function GET() {
       .from(shadowAdmins)
       .where(and(eq(shadowAdmins.orgId, orgId), eq(shadowAdmins.status, 'open'))),
 
+    // AD exposures count (open exposure findings)
+    db
+      .select({ count: count() })
+      .from(exposureFindings)
+      .where(and(eq(exposureFindings.orgId, orgId), eq(exposureFindings.status, 'open'))),
+
     // Risk score distribution
     db
       .select({
@@ -168,5 +175,6 @@ export async function GET() {
     activeThreats: activeThreatsResult[0]?.count ?? 0,
     attackPathsCount: attackPathsResult[0]?.count ?? 0,
     shadowAdminCount: shadowAdminsResult[0]?.count ?? 0,
+    exposuresCount: exposuresResult[0]?.count ?? 0,
   })
 }

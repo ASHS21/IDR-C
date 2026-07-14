@@ -314,7 +314,7 @@ Identity B: ${JSON.stringify({ displayName: b.displayName, email: b.email, upn: 
           'anthropic-version': '2023-06-01',
         },
         body: JSON.stringify({
-          model: 'claude-sonnet-4-20250514',
+          model: process.env.ANTHROPIC_MODEL || 'claude-sonnet-4-20250514',
           max_tokens: 512,
           system: CONFLICT_RESOLVER,
           messages: [{ role: 'user', content: prompt }],

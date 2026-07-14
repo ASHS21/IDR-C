@@ -220,6 +220,9 @@ export class LDAPConnector implements Connector {
             'objectGUID', 'sAMAccountName', 'userPrincipalName', 'displayName',
             'mail', 'department', 'manager', 'memberOf', 'lastLogon',
             'pwdLastSet', 'userAccountControl', 'whenCreated',
+            // AD security posture attributes
+            'servicePrincipalName', 'adminCount', 'msDS-AllowedToDelegateTo',
+            'msDS-AllowedToActOnBehalfOfOtherIdentity', 'msDS-SupportedEncryptionTypes',
           ],
           paged: true,
         }
@@ -251,11 +254,20 @@ export class LDAPConnector implements Connector {
             const managerDn = get('manager')
             const managerMatch = managerDn ? managerDn.match(/^CN=([^,]+)/) : null
 
+            // AD security posture attributes
+            const spn = getAll('servicePrincipalName').filter(Boolean)
+            const adminCount = parseInt(get('adminCount')) || 0
+            const allowedToDelegateTo = getAll('msDS-AllowedToDelegateTo').filter(Boolean)
+            const rbcd = !!get('msDS-AllowedToActOnBehalfOfOtherIdentity')
+            const supportedEncTypes = parseInt(get('msDS-SupportedEncryptionTypes')) || undefined
+            // A person object carrying an SPN is a service account → kerberoastable
+            const isServiceAccount = spn.length > 0
+
             identities.push({
               sourceId: get('objectGUID') || get('sAMAccountName'),
               displayName: get('displayName') || get('sAMAccountName'),
-              type: 'human',
-              subType: 'employee',
+              type: isServiceAccount ? 'non_human' : 'human',
+              subType: isServiceAccount ? 'service_account' : 'employee',
               upn: get('userPrincipalName'),
               samAccountName: get('sAMAccountName'),
               email: get('mail'),
@@ -270,6 +282,7 @@ export class LDAPConnector implements Connector {
               privileged: memberOf.some((g: string) =>
                 TIER_0_GROUPS.some(t => g.toLowerCase().includes(t.toLowerCase())),
               ),
+              adSecurity: { uac, spn, adminCount, allowedToDelegateTo, rbcd, supportedEncTypes },
             })
 
             if (onProgress && identities.length % 100 === 0) {
@@ -468,11 +481,21 @@ export class LDAPConnector implements Connector {
 
       const status = uac ? uacToStatus(uac) : (row.status || row.enabled === 'FALSE' ? 'disabled' : 'active')
 
+      // AD security posture attributes (optional CSV columns)
+      const spnRaw = row.serviceprincipalname || row.spn || ''
+      const spn = spnRaw ? spnRaw.split(/[;|,]/).map((s: string) => s.trim()).filter(Boolean) : []
+      const adminCount = parseInt(row.admincount || row.admin_count || '') || 0
+      const delegateRaw = row.allowedtodelegateto || row.msds_allowedtodelegateto || ''
+      const allowedToDelegateTo = delegateRaw ? delegateRaw.split(/[;|,]/).map((s: string) => s.trim()).filter(Boolean) : []
+      const rbcd = ['true', '1', 'yes'].includes(String(row.rbcd || row.allowedtoactonbehalf || '').toLowerCase())
+      const supportedEncTypes = parseInt(row.supportedenctypes || row.msds_supportedencryptiontypes || '') || undefined
+      const isServiceAccount = spn.length > 0
+
       identities.push({
         sourceId: row.objectguid || row.objectid || sam || `csv-${identities.length}`,
         displayName,
-        type: (row.type === 'non_human' || row.type === 'service') ? 'non_human' : 'human',
-        subType: row.subtype || row.sub_type || (row.type === 'service' ? 'service_account' : 'employee'),
+        type: (row.type === 'non_human' || row.type === 'service' || isServiceAccount) ? 'non_human' : 'human',
+        subType: row.subtype || row.sub_type || ((row.type === 'service' || isServiceAccount) ? 'service_account' : 'employee'),
         upn,
         samAccountName: sam,
         email,
@@ -485,6 +508,7 @@ export class LDAPConnector implements Connector {
         privileged: memberOf.some((g: string) =>
           TIER_0_GROUPS.some(t => g.toLowerCase().includes(t.toLowerCase())),
         ),
+        adSecurity: { uac, spn, adminCount, allowedToDelegateTo, rbcd, supportedEncTypes },
       })
     }
 

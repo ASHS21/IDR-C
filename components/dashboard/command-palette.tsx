@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
-import { Search, Users, Shield, AlertTriangle, Brain, Settings, X } from 'lucide-react'
+import { Search, Users, Shield, AlertTriangle, Settings, ShieldAlert, ListChecks, Scale, Network } from 'lucide-react'
 
 interface SearchResult {
   id: string
@@ -29,9 +29,11 @@ export function CommandPalette() {
     { id: 'dashboard', label: tNav('dashboard'), category: 'page', href: '/dashboard', icon: Shield },
     { id: 'identities', label: tNav('identities'), category: 'page', href: '/dashboard/identities', icon: Users },
     { id: 'tiering', label: tNav('tiering'), category: 'page', href: '/dashboard/tiering', icon: Shield },
+    { id: 'exposures', label: tNav('exposures'), category: 'page', href: '/dashboard/exposures', icon: ShieldAlert },
+    { id: 'issues', label: tNav('issues'), category: 'page', href: '/dashboard/issues', icon: ListChecks },
     { id: 'violations', label: tNav('violations'), category: 'page', href: '/dashboard/violations', icon: AlertTriangle },
-    { id: 'graph', label: tNav('graph'), category: 'page', href: '/dashboard/graph' },
-    { id: 'ai', label: tNav('ai'), category: 'page', href: '/dashboard/ai', icon: Brain },
+    { id: 'compliance', label: tNav('compliance'), category: 'page', href: '/dashboard/compliance', icon: Scale },
+    { id: 'graph', label: tNav('graph'), category: 'page', href: '/dashboard/graph', icon: Network },
     { id: 'settings', label: tNav('settings'), category: 'page', href: '/dashboard/settings', icon: Settings },
   ]
 

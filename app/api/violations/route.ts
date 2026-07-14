@@ -1,16 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { auth } from '@/lib/auth/config'
+import { withApiHandler } from '@/lib/api/handler'
 import { db } from '@/lib/db'
 import { policyViolations, policies, identities } from '@/lib/db/schema'
 import { and, eq, count, desc, asc, sql, gt, SQL } from 'drizzle-orm'
 
-export async function GET(req: NextRequest) {
-  const session = await auth()
-  if (!session?.user?.orgId) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
-
-  const orgId = session.user.orgId
+export const GET = withApiHandler(async (req: NextRequest, { orgId, log }) => {
   const params = req.nextUrl.searchParams
 
   const page = Math.max(1, parseInt(params.get('page') || '1'))
@@ -38,7 +32,6 @@ export async function GET(req: NextRequest) {
     exceptions,
     remediationStats,
   ] = await Promise.all([
-    // Paginated violation list
     db
       .select({
         id: policyViolations.id,
@@ -62,31 +55,26 @@ export async function GET(req: NextRequest) {
       .limit(pageSize)
       .offset(offset),
 
-    // Total count
     db.select({ total: count() }).from(policyViolations).where(where),
 
-    // Severity breakdown
     db
       .select({ severity: policyViolations.severity, count: count() })
       .from(policyViolations)
       .where(eq(policyViolations.orgId, orgId))
       .groupBy(policyViolations.severity),
 
-    // Type breakdown
     db
       .select({ type: policyViolations.violationType, count: count() })
       .from(policyViolations)
       .where(eq(policyViolations.orgId, orgId))
       .groupBy(policyViolations.violationType),
 
-    // Status breakdown
     db
       .select({ status: policyViolations.status, count: count() })
       .from(policyViolations)
       .where(eq(policyViolations.orgId, orgId))
       .groupBy(policyViolations.status),
 
-    // Active exceptions
     db
       .select({
         id: policyViolations.id,
@@ -106,7 +94,6 @@ export async function GET(req: NextRequest) {
       ))
       .orderBy(asc(policyViolations.exceptionExpiresAt)),
 
-    // Remediation rate (last 90 days)
     db
       .select({
         total: count(),
@@ -123,6 +110,8 @@ export async function GET(req: NextRequest) {
   const remDone = Number(remediationStats[0]?.remediated ?? 0)
   const remediationRate = remTotal > 0 ? Math.round((remDone / remTotal) * 100) : 100
 
+  log.info('Violations queried', { total: totalResult[0]?.total ?? 0, page })
+
   return NextResponse.json({
     data: violationList,
     total: totalResult[0]?.total ?? 0,
@@ -136,4 +125,4 @@ export async function GET(req: NextRequest) {
     },
     exceptions,
   })
-}
+})

@@ -1,17 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { auth } from '@/lib/auth/config'
+import { withApiHandler } from '@/lib/api/handler'
 import { db } from '@/lib/db'
 import { identities } from '@/lib/db/schema'
 import { and, eq, gte, lte, ilike, or, desc, asc, count, sql, SQL } from 'drizzle-orm'
 import { identityFilterSchema } from '@/lib/schemas/identity'
 
-export async function GET(req: NextRequest) {
-  const session = await auth()
-  if (!session?.user?.orgId) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
-
-  const orgId = session.user.orgId
+export const GET = withApiHandler(async (req: NextRequest, { orgId, log }) => {
   const params = Object.fromEntries(req.nextUrl.searchParams)
 
   const parsed = identityFilterSchema.safeParse(params)
@@ -85,10 +79,12 @@ export async function GET(req: NextRequest) {
       .where(where),
   ])
 
+  log.info('Identities queried', { total: totalResult[0]?.total ?? 0, page: filters.page })
+
   return NextResponse.json({
     data,
     total: totalResult[0]?.total ?? 0,
     page: filters.page,
     pageSize: filters.pageSize,
   })
-}
+})

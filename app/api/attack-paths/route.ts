@@ -5,6 +5,7 @@ import { attackPaths, identities, resources } from '@/lib/db/schema'
 import { eq, and, gte, desc, sql } from 'drizzle-orm'
 import { hasRole } from '@/lib/utils/rbac'
 import { buildAdjacencyList, findAllPaths } from '@/lib/graph/traversal'
+import { determineTechnique, edgeToTechnique } from '@/lib/graph/techniques'
 import { ATTACK_PATH_NARRATION_PROMPT } from '@/lib/ai/prompts'
 import { logAction, unauthorized, forbidden } from '@/lib/actions/helpers'
 import type { AppRole } from '@/lib/utils/rbac'
@@ -197,39 +198,6 @@ export async function POST(req: NextRequest) {
 
 // ── Helpers ──
 
-function determineTechnique(edges: Array<{ type: string; label: string; properties?: Record<string, any> }>): { name: string; mitreId: string | null } {
-  for (const e of edges) {
-    const label = (e.label || '').toLowerCase()
-    if (label.includes('genericall') || label.includes('generic_all')) return { name: 'AD Object Takeover', mitreId: 'T1222.001' }
-    if (label.includes('writedacl') || label.includes('write_dacl')) return { name: 'DACL Modification', mitreId: 'T1222.001' }
-    if (label.includes('writeowner') || label.includes('write_owner')) return { name: 'Owner Modification', mitreId: 'T1222.001' }
-    if (label.includes('dcsync')) return { name: 'DCSync', mitreId: 'T1003.006' }
-    if (label.includes('force_change_password') || label.includes('forcechang')) return { name: 'Forced Password Change', mitreId: 'T1098' }
-    if (label.includes('add_member') || label.includes('addmember')) return { name: 'Group Membership Abuse', mitreId: 'T1098.002' }
-    if (e.type === 'delegation' && e.properties?.dangerous) return { name: 'Delegation Abuse', mitreId: 'T1134.001' }
-    if (label.includes('domain admin') || label.includes('enterprise admin')) return { name: 'Privilege Escalation via Entitlement', mitreId: 'T1078.002' }
-  }
-  if (edges.some(e => e.type === 'membership')) return { name: 'Group Membership Chain', mitreId: 'T1078.002' }
-  if (edges.some(e => e.type === 'owner')) return { name: 'NHI Owner Compromise', mitreId: 'T1078.004' }
-  return { name: 'Lateral Movement', mitreId: 'T1021' }
-}
-
-function edgeToTechnique(edge: { type: string; label: string; properties?: Record<string, any> }): string {
-  const label = (edge.label || '').toLowerCase()
-  if (label.includes('genericall')) return 'GenericAll'
-  if (label.includes('writedacl')) return 'WriteDACL'
-  if (label.includes('writeowner')) return 'WriteOwner'
-  if (label.includes('dcsync')) return 'DCSync'
-  if (label.includes('add_member')) return 'AddMember'
-  if (label.includes('force_change_password')) return 'ForceChangePassword'
-  if (edge.type === 'membership') return 'GroupMembership'
-  if (edge.type === 'entitlement') return 'Entitlement'
-  if (edge.type === 'owner') return 'OwnerOf'
-  if (edge.type === 'delegation') return 'Delegation'
-  if (edge.type === 'acl') return 'ACLAbuse'
-  return edge.type
-}
-
 // AI narration for top paths (non-blocking)
 const OLLAMA_URL = process.env.OLLAMA_URL || 'http://localhost:11434'
 const OLLAMA_MODEL = process.env.OLLAMA_MODEL || 'qwen2.5:7b'
@@ -308,7 +276,7 @@ async function callAIForNarration(pathData: any): Promise<string | null> {
           'anthropic-version': '2023-06-01',
         },
         body: JSON.stringify({
-          model: 'claude-sonnet-4-20250514',
+          model: process.env.ANTHROPIC_MODEL || 'claude-sonnet-4-20250514',
           max_tokens: 2048,
           system: ATTACK_PATH_NARRATION_PROMPT,
           messages: [{ role: 'user', content: prompt }],

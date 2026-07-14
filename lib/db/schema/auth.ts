@@ -1,4 +1,4 @@
-import { pgTable, uuid, text, integer, timestamp, primaryKey } from 'drizzle-orm/pg-core'
+import { pgTable, uuid, text, integer, timestamp, primaryKey, jsonb } from 'drizzle-orm/pg-core'
 import { appRoleEnum } from './enums'
 import { organizations } from './organizations'
 
@@ -11,6 +11,7 @@ export const users = pgTable('users', {
   hashedPassword: text('hashed_password'),
   appRole: appRoleEnum('app_role').notNull().default('viewer'),
   orgId: uuid('org_id').references(() => organizations.id),
+  preferences: jsonb('preferences').default({}),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 })
 

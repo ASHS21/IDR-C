@@ -33,3 +33,8 @@ next-env.d.ts
 # drizzle
 /drizzle/meta
 .gstack/
+
+# iCloud .nosync symlink targets (local dev only — never commit)
+node_modules.nosync/
+.next.nosync/
+/coverage/

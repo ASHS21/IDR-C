@@ -37,6 +37,15 @@ export * from './chat-sessions'
 
 // GPO Tracking
 export * from './gpo'
+export * from './gpo-baselines'
+
+// AD Exposure assessment (fsProtect parity): certificate/GPO/secret findings, AD CS, trends
+export * from './exposure-findings'
+export * from './posture-snapshots'
+export * from './adcs'
+
+// Issue lifecycle (fsProtect parity): managed finding workflow + timeline
+export * from './issues'
 
 // Phase E2: Data Quality & Identity Resolution
 export * from './identity-aliases'
@@ -49,3 +58,6 @@ export * from './briefings'
 
 // Automation Rules Engine
 export * from './automation-rules'
+
+// Active Sessions (for session management)
+export * from './active-sessions'

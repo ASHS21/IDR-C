@@ -107,6 +107,7 @@ export async function syncToDatabase(
         department: raw.department || null,
         lastLogonAt: raw.lastLogonAt || null,
         passwordLastSetAt: raw.passwordLastSetAt || null,
+        adSecurity: raw.adSecurity ?? null,
         orgId,
         updatedAt: new Date(),
       }

@@ -36,6 +36,7 @@ export interface OverviewMetrics {
   activeThreats: number
   attackPathsCount: number
   shadowAdminCount: number
+  exposuresCount: number
 }
 
 export function useOverviewMetrics() {

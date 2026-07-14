@@ -31,6 +31,16 @@ export interface SyncResult {
   duration: number
 }
 
+/** Raw AD security attributes used by the static posture/exposure checks. */
+export interface AdSecurity {
+  uac?: number // userAccountControl bitmask
+  spn?: string[] // servicePrincipalName values (kerberoastable when set on a person account)
+  adminCount?: number // 1 => protected by AdminSDHolder (currently/formerly privileged)
+  allowedToDelegateTo?: string[] // msDS-AllowedToDelegateTo (constrained delegation)
+  rbcd?: boolean // msDS-AllowedToActOnBehalfOfOtherIdentity present (resource-based constrained delegation)
+  supportedEncTypes?: number // msDS-SupportedEncryptionTypes
+}
+
 export interface RawIdentity {
   sourceId: string
   displayName: string
@@ -49,6 +59,7 @@ export interface RawIdentity {
   mfaEnabled?: boolean
   privileged?: boolean
   memberOf?: string[] // group source IDs
+  adSecurity?: AdSecurity
 }
 
 export interface RawGroup {

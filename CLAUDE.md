@@ -46,15 +46,15 @@ Target market: CISOs, IAM Engineers, and Security Analysts in Saudi Arabia under
 
 | Metric | Count |
 |--------|-------|
-| Dashboard pages | 29 |
-| API routes | 88 |
-| Database tables | 26 |
-| Cron jobs | 13 |
+| Dashboard pages | 33 |
+| API routes | 110 |
+| Database tables | 40 |
+| Cron jobs | 16 |
 | AI prompts | 11 |
 | Connectors | 14 |
 | Components | 42 |
 | Source lines | ~43,000 |
-| i18n keys | ~800 (EN + AR) |
+| i18n keys | ~1,570 (EN + AR) |
 
 ## Core Principle: Identity-First
 
@@ -96,9 +96,9 @@ Tier violation = identity's `effective_tier` (highest tier accessed) is stricter
 | DigiCert CertCentral | Certificate | API key |
 | CSV Import | Manual | File upload |
 
-## Cron Jobs (13)
+## Cron Jobs (16)
 
-risk-scorer (6h), tier-scanner (6h), dormancy-detector (daily), cert-expiry (daily), nhi-orphan (daily), sync-health (15min), attack-path-scanner (6h), threat-detector (5min), event-cleanup (daily), shadow-admin-scanner (daily), peer-anomaly-detector (daily), supply-chain-risk (weekly), data-steward (daily)
+risk-scorer (6h), tier-scanner (6h), dormancy-detector (daily), cert-expiry (daily), nhi-orphan (daily), sync-health (15min), attack-path-scanner (6h), threat-detector (5min), event-cleanup (daily), shadow-admin-scanner (daily), peer-anomaly-detector (daily), supply-chain-risk (weekly), data-steward (daily), automation-engine, daily-briefing, ad-exposure-scanner (6h — static AD posture/exposure assessment via `lib/itdr/posture-checks.ts`)
 
 ## AI Prompts (11)
 

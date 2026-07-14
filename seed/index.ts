@@ -8,6 +8,14 @@ const DATABASE_URL = process.env.DATABASE_URL || 'postgresql://postgres:postgres
 const client = postgres(DATABASE_URL)
 const db = drizzle(client, { schema })
 
+// --- userAccountControl flags (for AD security posture seeding) ---
+const UAC_NORMAL = 0x0200
+const UAC_PASSWD_NOTREQD = 0x0020
+const UAC_REVERSIBLE_ENCRYPTION = 0x0080
+const UAC_DONT_EXPIRE_PASSWORD = 0x10000
+const UAC_TRUSTED_FOR_DELEGATION = 0x80000
+const UAC_DONT_REQ_PREAUTH = 0x400000
+
 // --- Helpers ---
 function randomItem<T>(arr: T[]): T {
   return arr[Math.floor(Math.random() * arr.length)]
@@ -112,6 +120,15 @@ async function seed() {
       lastLogonAt: dormant ? daysAgo(randomInt(91, 365)) : daysAgo(randomInt(0, 30)),
       passwordLastSetAt: daysAgo(randomInt(1, 180)),
       createdInSourceAt: daysAgo(randomInt(100, 1000)),
+      adSecurity: (() => {
+        let uac = UAC_NORMAL
+        if (i < 5) {} // tier_0 admins (adminCount set below)
+        if (i === 2) uac |= UAC_DONT_REQ_PREAUTH   // AS-REP roastable tier_0 admin
+        if (i === 3) uac |= UAC_PASSWD_NOTREQD      // password not required on tier_0
+        if (i === 6) uac |= UAC_DONT_EXPIRE_PASSWORD
+        if (i === 7) uac |= UAC_REVERSIBLE_ENCRYPTION
+        return { uac, spn: [], adminCount: i < 5 ? 1 : 0, allowedToDelegateTo: [], rbcd: false }
+      })(),
       orgId: org.id,
     })
   }
@@ -174,8 +191,21 @@ async function seed() {
       sourceId: `SVC-${(i + 1).toString().padStart(4, '0')}`,
       samAccountName: svcName,
       lastLogonAt: daysAgo(randomInt(0, 60)),
+      passwordLastSetAt: daysAgo(randomInt(400, 1200)), // stale → raises Kerberoast severity
       createdInSourceAt: daysAgo(randomInt(100, 800)),
       expiryAt: i < 8 ? daysAgo(-randomInt(30, 365)) : daysAgo(randomInt(-365, -1)),
+      adSecurity: (() => {
+        const svcClass = randomItem(['MSSQLSvc', 'HTTP', 'HOST', 'CIFS', 'LDAP'])
+        let uac = UAC_NORMAL
+        if (i === 11) uac |= UAC_TRUSTED_FOR_DELEGATION // unconstrained delegation → critical
+        return {
+          uac,
+          spn: [`${svcClass}/host${i + 1}.acmefs.local:1433`], // all service accounts are Kerberoastable
+          adminCount: i < 3 ? 1 : 0,
+          allowedToDelegateTo: i === 12 ? ['CIFS/fileserver.acmefs.local'] : [], // constrained delegation
+          rbcd: i === 13, // resource-based constrained delegation
+        }
+      })(),
       orgId: org.id,
     })
   }
@@ -247,6 +277,8 @@ async function seed() {
       sourceSystem: 'active_directory', sourceId: `MCH-${i + 1}`,
       lastLogonAt: daysAgo(0),
       createdInSourceAt: daysAgo(randomInt(500, 1500)),
+      // Domain controllers are trusted for delegation — surfaced as an unconstrained-delegation exposure
+      adSecurity: { uac: UAC_NORMAL | UAC_TRUSTED_FOR_DELEGATION, spn: [], adminCount: 1, allowedToDelegateTo: [], rbcd: false },
       orgId: org.id,
     })
   }
@@ -1696,6 +1728,77 @@ async function seed() {
   ]
   await db.insert(schema.gpoPermissions).values(gpoPermValues)
   console.log(`Created ${gpoPermValues.length} GPO permissions`)
+
+  // ── GPO settings (for RSoP / baseline drift / secret scan) ──
+  // Default Domain Policy: weak password length (drift), conflicting LM level, and a GPP cpassword.
+  await db.update(schema.gpoObjects).set({
+    settings: {
+      MinimumPasswordLength: '8', PasswordComplexity: 'Enabled', LmCompatibilityLevel: '5',
+      cpassword: 'j1Uyj3Vx8TY9LtLZil2uAuZkFQA/4latT76ZwgdHdQ', // public Microsoft GPP AES key → ESC-grade secret
+    },
+  }).where(eq(schema.gpoObjects.id, t0Gpos[0].id))
+  // Kerberos Policy linked to the same root OU with a conflicting LM level → RSoP conflict.
+  await db.update(schema.gpoObjects).set({
+    settings: { LmCompatibilityLevel: '2' },
+  }).where(eq(schema.gpoObjects.id, t0Gpos[5].id))
+  // Workstation Lockdown: dangerous settings + drift.
+  await db.update(schema.gpoObjects).set({
+    settings: { EnableGuestAccount: 'Enabled', SMBSigningRequired: 'Disabled', MinimumPasswordLength: '6' },
+  }).where(eq(schema.gpoObjects.id, t2Gpos[0].id))
+  console.log('Set GPO settings on 3 GPOs (RSoP/baseline/secret triggers)')
+
+  // ── GPO baselines ──
+  await db.insert(schema.gpoBaselines).values([
+    { name: 'Domain Security Baseline', scope: 'Domain', adTier: 'unclassified', orgId: org.id,
+      settings: { MinimumPasswordLength: '14', PasswordComplexity: 'Enabled', LmCompatibilityLevel: '5', SMBSigningRequired: 'Enabled', EnableGuestAccount: 'Disabled' } },
+    { name: 'Tier 0 Hardening Baseline', scope: 'Tier 0 OU', adTier: 'tier_0', orgId: org.id,
+      settings: { MinimumPasswordLength: '15', LmCompatibilityLevel: '5', LSAProtection: 'Enabled', SMBSigningRequired: 'Enabled' } },
+    { name: 'Workstation Baseline', scope: 'Workstations', adTier: 'tier_2', orgId: org.id,
+      settings: { MinimumPasswordLength: '14', EnableGuestAccount: 'Disabled', SMBSigningRequired: 'Enabled' } },
+  ])
+  console.log('Created 3 GPO baselines')
+
+  // ── AD CS (certificate templates + CA) for ESC1–ESC8 ──
+  const [enterpriseCa] = await db.insert(schema.adcsAuthorities).values({
+    name: 'ACME-ENTERPRISE-CA', dnsName: 'ca01.acmefs.local',
+    editfAttributeSubjectAltName2: true, // ESC6
+    webEnrollmentHttp: true, // ESC8
+    enrollmentAgentRestrictionsEnabled: false,
+    lowPrivEnrollPrincipals: ['Domain Users', 'Authenticated Users'], orgId: org.id,
+  }).returning()
+  await db.insert(schema.adcsTemplates).values([
+    { caId: enterpriseCa.id, name: 'User-Auth-SAN', displayName: 'User Authentication (SAN)', orgId: org.id,
+      published: true, enrolleeSuppliesSubject: true, requiresManagerApproval: false, authorizedSignaturesRequired: 0,
+      ekus: ['client_auth'], enrollmentLowPriv: true }, // ESC1
+    { caId: enterpriseCa.id, name: 'AnyPurpose', displayName: 'Any Purpose', orgId: org.id,
+      published: true, enrolleeSuppliesSubject: false, requiresManagerApproval: false, authorizedSignaturesRequired: 0,
+      ekus: ['any_purpose'], enrollmentLowPriv: true }, // ESC2
+    { caId: enterpriseCa.id, name: 'EnrollmentAgent', displayName: 'Enrollment Agent', orgId: org.id,
+      published: true, enrolleeSuppliesSubject: false, requiresManagerApproval: false, authorizedSignaturesRequired: 0,
+      ekus: ['enrollment_agent'], enrollmentLowPriv: true }, // ESC3
+    { caId: enterpriseCa.id, name: 'WebServer-Writable', displayName: 'Web Server (writable)', orgId: org.id,
+      published: true, enrolleeSuppliesSubject: false, requiresManagerApproval: false, authorizedSignaturesRequired: 0,
+      ekus: ['server_auth'], enrollmentLowPriv: false, aclWritableByLowPriv: true }, // ESC4
+    { caId: enterpriseCa.id, name: 'StandardUser', displayName: 'Standard User (safe)', orgId: org.id,
+      published: true, enrolleeSuppliesSubject: false, requiresManagerApproval: true, authorizedSignaturesRequired: 1,
+      ekus: ['client_auth'], enrollmentLowPriv: true }, // benign — manager approval + signatures
+  ])
+  console.log('Created 1 CA + 5 certificate templates (ESC1–ESC8 triggers)')
+
+  // ── Posture snapshots (trend history) ──
+  const snapshotValues: (typeof schema.postureSnapshots.$inferInsert)[] = []
+  for (let i = 8; i >= 0; i--) {
+    const score = Math.max(40, 100 - (8 - i) * 5 + (i % 2 === 0 ? 3 : -2))
+    const open = 45 - (8 - i)
+    snapshotValues.push({
+      orgId: org.id, capturedAt: daysAgo(i * 3), exposureScore: score, totalOpen: open,
+      bySeverity: { critical: 9, high: Math.round(open * 0.6), medium: Math.round(open * 0.2), low: 2 },
+      byCategory: { identity: 41, certificate: 6, gpo: 4, secret: 1 },
+      byImpact: { credential_theft: 30, privilege_escalation: 16, lateral_movement: 0, persistence: 0 },
+    })
+  }
+  await db.insert(schema.postureSnapshots).values(snapshotValues)
+  console.log(`Created ${snapshotValues.length} posture snapshots (trend history)`)
 
   console.log('\nSeed complete!')
   console.log('Login: admin@acmefs.sa (password set via SEED_ADMIN_PASSWORD env var)')

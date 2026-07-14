@@ -6,9 +6,7 @@ export default defineConfig({
     environment: 'node',
     globals: true,
     include: ['tests/**/*.test.ts', 'tests/**/*.test.tsx'],
-    environmentMatchGlobs: [
-      ['tests/**/*.test.tsx', 'jsdom'],
-    ],
+    // Note: .tsx tests that need a DOM should use `// @vitest-environment jsdom` at the top of the file.
   },
   resolve: {
     alias: { '@': path.resolve(__dirname, '.') },
