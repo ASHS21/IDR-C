@@ -20,8 +20,11 @@
 # debug
 npm-debug.log*
 
-# local env files
-.env*.local
+# local env files — ignore ALL real env files, keep only the *.example templates
+.env
+.env.*
+!.env.example
+!.env.production.example
 
 # vercel
 .vercel

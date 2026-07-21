@@ -5,7 +5,7 @@ import { evaluateRules } from '@/lib/automation/engine'
 
 function verifyCronSecret(request: NextRequest): boolean {
   const secret = process.env.CRON_SECRET
-  if (!secret) return true
+  if (!secret) return process.env.NODE_ENV !== 'production' // no secret: allow in dev, DENY in prod
   const auth = request.headers.get('authorization')
   return auth === `Bearer ${secret}`
 }
