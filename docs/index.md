@@ -2,6 +2,8 @@
 
 > AI-powered IAM posture management platform with Active Directory tiering, non-human identity tracking, and automated compliance.
 
+- [Product Overview](./product-overview.md) — what it is, what makes it stand out, and the full feature list
+
 ## Getting Started
 - [Quickstart](./getting-started/quickstart.md) — Get running in 5 minutes
 - [Installation](./getting-started/installation.md) — Full installation guide
