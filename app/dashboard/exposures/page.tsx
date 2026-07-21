@@ -8,6 +8,7 @@ import {
   AreaChart, Area, LineChart, Line, BarChart, Bar, PieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
 } from 'recharts'
+import { gridProps } from '@/components/ui/chart-theme'
 import { CsvExportButton } from '@/components/ui/csv-export-button'
 import { ForceGraph, type FgNode, type FgLink } from '@/components/dashboard/force-graph'
 import { formatRelativeTime } from '@/lib/utils/formatters'
@@ -303,7 +304,7 @@ export default function ExposuresPage() {
                           <stop offset="100%" stopColor="var(--color-high)" stopOpacity={0} />
                         </linearGradient>
                       </defs>
-                      <CartesianGrid strokeDasharray="3 3" stroke="var(--border-primary)" />
+                      <CartesianGrid {...gridProps} />
                       <XAxis dataKey="t" tick={{ fontSize: 11, fill: 'var(--text-tertiary)' }} />
                       <YAxis tick={{ fontSize: 11, fill: 'var(--text-tertiary)' }} />
                       <Tooltip contentStyle={chartTooltip} />
@@ -312,7 +313,7 @@ export default function ExposuresPage() {
                     </AreaChart>
                   ) : (
                     <AreaChart data={trendData} margin={{ top: 5, right: 10, left: -18, bottom: 0 }}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="var(--border-primary)" />
+                      <CartesianGrid {...gridProps} />
                       <XAxis dataKey="t" tick={{ fontSize: 11, fill: 'var(--text-tertiary)' }} />
                       <YAxis tick={{ fontSize: 11, fill: 'var(--text-tertiary)' }} />
                       <Tooltip contentStyle={chartTooltip} formatter={(v: any, n: any) => [v, humanize(String(n))]} />

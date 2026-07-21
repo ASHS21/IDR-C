@@ -40,3 +40,28 @@ export function TableSkeleton({ rows = 5, cols = 6 }: { rows?: number; cols?: nu
     </div>
   )
 }
+
+/** Skeleton shaped like a StatTile (stripe + label + value), matching the real layout. */
+export function StatTileSkeleton() {
+  return (
+    <div className="relative overflow-hidden rounded-[var(--radius-card)] border border-[var(--border-default)] bg-[var(--bg-primary)] p-4" style={{ boxShadow: 'var(--shadow-card)' }}>
+      <span className="absolute inset-y-0 start-0 w-[3px] bg-[var(--bg-tertiary)]" />
+      <Skeleton height={10} width={90} className="mb-3" />
+      <Skeleton height={26} width={52} />
+    </div>
+  )
+}
+
+/** Skeleton that reserves the chart's real height so the layout doesn't jump on load. */
+export function ChartSkeleton({ height = 240 }: { height?: number }) {
+  return (
+    <div
+      className="flex items-end gap-2 rounded-[var(--radius-card)] border border-[var(--border-default)] bg-[var(--bg-primary)] p-4"
+      style={{ height, boxShadow: 'var(--shadow-card)' }}
+    >
+      {[40, 65, 50, 80, 55, 72, 48, 90, 60].map((h, i) => (
+        <Skeleton key={i} className="flex-1" height={`${h}%`} />
+      ))}
+    </div>
+  )
+}
