@@ -31,7 +31,7 @@ export default function ThreatDetailPage() {
   const tCommon = useTranslations('common')
   const router = useRouter()
   const params = useParams()
-  const id = params.id as string
+  const id = params?.id as string
 
   const [data, setData] = useState<any>(null)
   const [triage, setTriage] = useState<any>(null)

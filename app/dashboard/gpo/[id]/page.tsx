@@ -46,7 +46,7 @@ export default function GpoDetailPage() {
   const fetchDetail = useCallback(async () => {
     setLoading(true)
     try {
-      const res = await fetch(`/api/gpo/${params.id}`)
+      const res = await fetch(`/api/gpo/${params?.id}`)
       if (res.ok) {
         setData(await res.json())
       }
@@ -55,7 +55,7 @@ export default function GpoDetailPage() {
     } finally {
       setLoading(false)
     }
-  }, [params.id])
+  }, [params?.id])
 
   useEffect(() => { fetchDetail() }, [fetchDetail])
 

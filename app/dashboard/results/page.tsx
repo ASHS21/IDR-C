@@ -172,7 +172,7 @@ export default function ResultsPage() {
   const tTiers = useTranslations('tiers')
   const router = useRouter()
   const pathname = usePathname()
-  const searchParams = useSearchParams()
+  const searchParams = useSearchParams() ?? new URLSearchParams()
 
   // State from URL params
   const [activeTab, setActiveTab] = useState<TabKey>((searchParams.get('tab') as TabKey) || 'all')

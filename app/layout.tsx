@@ -3,7 +3,6 @@ import { NextIntlClientProvider } from 'next-intl'
 import { getLocale, getMessages } from 'next-intl/server'
 import { Providers } from './providers'
 import { plexSans, plexMono, plexArabic } from '@/lib/fonts'
-// @ts-expect-error CSS import
 import './globals.css'
 
 export const metadata: Metadata = {

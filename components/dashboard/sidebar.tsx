@@ -52,7 +52,7 @@ const NAV_SECTIONS = [
 ]
 
 export function Sidebar() {
-  const pathname = usePathname()
+  const pathname = usePathname() ?? ''
   const [collapsed, setCollapsed] = useState(false)
   const [mobileOpen, setMobileOpen] = useState(false)
   const t = useTranslations('nav')

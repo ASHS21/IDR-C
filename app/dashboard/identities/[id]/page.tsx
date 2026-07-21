@@ -9,7 +9,7 @@ import { IdentityTabs } from '@/components/dashboard/identity-tabs'
 
 export default function IdentityDetailPage() {
   const params = useParams()
-  const id = params.id as string
+  const id = params?.id as string
   const { data, isLoading, error } = useIdentityDetail(id)
   const t = useTranslations('identity')
   const tCommon = useTranslations('common')
