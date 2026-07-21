@@ -67,6 +67,12 @@ export const policyTypeEnum = pgEnum('policy_type', [
 ])
 export const severityEnum = pgEnum('severity_level', ['critical', 'high', 'medium', 'low'])
 
+// Tier 0 live-access sessions: how an identity is logged on to a Tier 0 host, and session state.
+export const sessionLogonTypeEnum = pgEnum('session_logon_type', [
+  'interactive', 'remote_interactive', 'network', 'service', 'batch', 'unlock',
+])
+export const tier0SessionStatusEnum = pgEnum('tier0_session_status', ['active', 'ended'])
+
 // Violation enums
 export const violationTypeEnum = pgEnum('violation_type', [
   'tier_breach', 'sod_conflict', 'excessive_privilege', 'dormant_access',

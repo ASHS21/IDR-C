@@ -15,6 +15,7 @@
     "import": "Import Data",
     "docs": "Documentation",
     "settings": "Settings",
+    "tier0Live": "Tier 0 Live",
     "attackPaths": "Attack Paths",
     "shadowAdmins": "Shadow Admins",
     "blastRadius": "Blast Radius",

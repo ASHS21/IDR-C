@@ -61,3 +61,4 @@ export * from './automation-rules'
 
 // Active Sessions (for session management)
 export * from './active-sessions'
+export * from './tier0-sessions'

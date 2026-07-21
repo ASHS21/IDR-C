@@ -7,7 +7,7 @@ import { useTranslations } from 'next-intl'
 import {
   LayoutDashboard, Users, Shield, Key, AlertTriangle, Plug, ScrollText, Settings,
   ChevronLeft, ChevronRight, Menu, X, Network, Route, Radar,
-  Upload, Scale, ShieldAlert, Compass, ListChecks,
+  Upload, Scale, ShieldAlert, Compass, ListChecks, Radio,
 } from 'lucide-react'
 
 // MVP nav — trimmed to the essence. Deferred pages remain in the repo and load by direct URL;
@@ -26,6 +26,7 @@ const NAV_SECTIONS = [
   {
     labelKey: 'attackSurface' as const,
     items: [
+      { href: '/dashboard/tier0-live', labelKey: 'tier0Live' as const, icon: Radio },
       { href: '/dashboard/attack-paths', labelKey: 'attackPaths' as const, icon: Route },
       { href: '/dashboard/blast-radius', labelKey: 'blastRadius' as const, icon: Radar },
       { href: '/dashboard/graph', labelKey: 'graph' as const, icon: Network },
