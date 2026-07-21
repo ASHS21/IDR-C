@@ -30,6 +30,8 @@
 - [Requirements](./deployment/requirements.md)
 - [Docker](./deployment/docker.md)
 - [Environment Variables](./deployment/environment-variables.md)
+- [Hardened Environment (EDR/XDR)](./deployment/hardened-environment.md) — Deploying alongside Defender, Carbon Black, CrowdStrike
+- [SOC Change-Record Template](./deployment/soc-change-record-template.md) — Fill-in one-pager for blue-team sign-off
 
 ## Security
 - [Architecture](./security/architecture.md)
