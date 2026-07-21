@@ -23,4 +23,4 @@ export const POST = withApiHandler(async (req: NextRequest, { orgId, log }) => {
   const result = await simulateRemoval(orgId, parsed.data)
   log.info('What-if simulation', { kind: result.kind, pathsBroken: result.pathsBroken })
   return NextResponse.json(result)
-})
+}, { requiredRole: 'analyst' })

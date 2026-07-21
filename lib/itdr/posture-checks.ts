@@ -86,6 +86,10 @@ type CheckFn = (identity: PostureIdentity) => PostureFinding | null
 const kerberoastableCheck: CheckFn = (identity) => {
   const spn = identity.adSecurity?.spn ?? []
   if (spn.length === 0) return null
+  // Computer/machine accounts always carry host/ SPNs but have 120-char random
+  // machine passwords rotated by the DC — they are NOT Kerberoastable. Only flag
+  // person/service accounts (avoids one false positive per domain-joined machine).
+  if (identity.subType === 'computer' || identity.subType === 'machine') return null
   const priv = isPrivileged(identity)
   const stale = passwordStale(identity)
   return {

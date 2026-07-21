@@ -73,45 +73,19 @@ vi.mock('@/lib/db', () => {
   }
 })
 
-vi.mock('@/lib/db/schema', () => ({
-  identities: {
-    orgId: 'orgId',
-    adTier: 'adTier',
-    riskScore: 'riskScore',
-    id: 'id',
-  },
-  entitlements: {
-    orgId: 'orgId',
-    identityId: 'identityId',
-    resourceId: 'resourceId',
-    permissionName: 'permissionName',
-    adTierOfPermission: 'adTierOfPermission',
-  },
-  resources: {
-    id: 'id',
-    name: 'name',
-    type: 'type',
-    adTier: 'adTier',
-    criticality: 'criticality',
-    environment: 'environment',
-    ownerIdentityId: 'ownerIdentityId',
-  },
-  groupMemberships: {
-    orgId: 'orgId',
-    identityId: 'identityId',
-    groupId: 'groupId',
-  },
-  groups: {
-    id: 'id',
-    name: 'name',
-    type: 'type',
-    scope: 'scope',
-    adTier: 'adTier',
-    isPrivileged: 'isPrivileged',
-    memberCount: 'memberCount',
-    nestedGroupCount: 'nestedGroupCount',
-  },
-}))
+// Provide every schema table the /api/graph route imports as a harmless dummy.
+// Each table is a Proxy so any `table.column` access returns a string instead of
+// throwing on an undefined table. Named as real own-properties so vitest can bind
+// the named imports. The db mock above ignores these column values entirely.
+vi.mock('@/lib/db/schema', () => {
+  const tbl = (name: string) => new Proxy({}, { get: (_o: any, col: any) => `${name}.${String(col)}` })
+  return {
+    identities: tbl('identities'), entitlements: tbl('entitlements'), resources: tbl('resources'),
+    groupMemberships: tbl('groupMemberships'), groups: tbl('groups'),
+    policyViolations: tbl('policyViolations'), policies: tbl('policies'), accounts: tbl('accounts'),
+    gpoObjects: tbl('gpoObjects'), gpoLinks: tbl('gpoLinks'), gpoPermissions: tbl('gpoPermissions'),
+  }
+})
 
 vi.mock('drizzle-orm', () => ({
   and: (...args: any[]) => args,

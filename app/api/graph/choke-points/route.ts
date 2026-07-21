@@ -7,4 +7,4 @@ export const GET = withApiHandler(async (_req: NextRequest, { orgId, log }) => {
   const result = await computeChokePoints(orgId)
   log.info('Choke-point analysis', { totalPaths: result.totalPaths, fixes: result.fixes.length })
   return NextResponse.json(result)
-})
+}, { requiredRole: 'analyst' })

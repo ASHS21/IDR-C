@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/lib/auth/config'
+import { hasRole } from '@/lib/utils/rbac'
+import type { AppRole } from '@/lib/utils/rbac'
 import { db } from '@/lib/db'
 import { canaryIdentities, canaryTriggers, identities } from '@/lib/db/schema'
 import { eq, and, desc, sql } from 'drizzle-orm'
@@ -65,6 +67,9 @@ export async function POST(req: NextRequest) {
   const session = await auth()
   if (!session?.user?.orgId) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+  if (!hasRole((session.user as any).appRole as AppRole, 'iam_admin')) {
+    return NextResponse.json({ error: 'Forbidden: iam_admin role required' }, { status: 403 })
   }
 
   const orgId = session.user.orgId

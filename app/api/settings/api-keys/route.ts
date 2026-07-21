@@ -60,6 +60,8 @@ export async function POST(req: NextRequest) {
 export async function DELETE(req: NextRequest) {
   const session = await auth()
   if (!session?.user?.orgId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  if (!hasRole((session.user as any).appRole as AppRole, 'admin'))
+    return NextResponse.json({ error: 'Forbidden: admin role required' }, { status: 403 })
 
   const { keyId } = await req.json()
   await db.update(apiKeys)

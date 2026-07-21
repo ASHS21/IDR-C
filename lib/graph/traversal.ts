@@ -393,7 +393,13 @@ export function findAllPaths(
   maxDepth: number = 6
 ): Array<{ path: string[]; edges: GraphEdge[]; length: number }> {
   const results: Array<{ path: string[]; edges: GraphEdge[]; length: number }> = []
-  const MAX_RESULTS = 200 // cap to prevent explosion
+  const MAX_RESULTS = 200 // cap on results collected
+  // Hard work budget: caps DFS node expansions independently of results found.
+  // Without this, a high-degree hub (e.g. Domain Users) with few reachable Tier 0
+  // targets enumerates O(b^depth) simple paths while `results` stays near 0, so
+  // MAX_RESULTS never trips and the synchronous DFS can block the event loop (DoS).
+  const MAX_OPS = 200_000
+  let ops = 0
 
   function dfs(
     current: string,
@@ -403,6 +409,7 @@ export function findAllPaths(
     depth: number
   ): void {
     if (results.length >= MAX_RESULTS) return
+    if (++ops > MAX_OPS) return // work budget exhausted — abort this search
     if (depth > maxDepth) return
 
     if (depth > 0 && targetPredicate(current)) {

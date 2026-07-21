@@ -26,9 +26,9 @@ describe('Environment Validation', () => {
     vi.stubEnv('DATABASE_URL', 'postgresql://localhost:5432/test')
     vi.stubEnv('NEXTAUTH_SECRET', 'identity-radar-secret-key-change-in-production')
 
-    const { validateEnv } = await import('@/lib/env')
-
-    expect(() => validateEnv()).toThrow('placeholder')
+    // lib/env auto-validates on import and re-throws in production, so the import itself rejects.
+    vi.resetModules()
+    await expect(import('@/lib/env')).rejects.toThrow('placeholder')
   })
 
   it('rejects short NEXTAUTH_SECRET in production', async () => {
@@ -36,9 +36,8 @@ describe('Environment Validation', () => {
     vi.stubEnv('DATABASE_URL', 'postgresql://localhost:5432/test')
     vi.stubEnv('NEXTAUTH_SECRET', 'short')
 
-    const { validateEnv } = await import('@/lib/env')
-
-    expect(() => validateEnv()).toThrow('at least 16')
+    vi.resetModules()
+    await expect(import('@/lib/env')).rejects.toThrow('at least 16')
   })
 
   it('validates CREDENTIALS_KEY format when provided', async () => {

@@ -56,11 +56,15 @@ const IMPACT_META: Record<ImpactCategory, { icon: typeof KeyRound; label: string
   lateral_movement: { icon: GitBranch, label: 'Lateral Movement', color: '#0ea5e9' },
   persistence: { icon: Anchor, label: 'Persistence', color: '#14b8a6' },
 }
-const CATEGORY_META: Record<ExposureCategory, { icon: typeof Users; label: string; color: string }> = {
+// `preview: true` = no live collector yet. Identity exposures are collected live from
+// AD via LDAP; certificate (AD CS), GPO, and secret exposures require dedicated
+// collectors that aren't shipped yet, so on a real deployment these categories are
+// empty (or populated only by demo seed data). Flagged in the UI so it isn't misleading.
+const CATEGORY_META: Record<ExposureCategory, { icon: typeof Users; label: string; color: string; preview?: boolean }> = {
   identity: { icon: Users, label: 'Identity', color: '#6366f1' },
-  certificate: { icon: FileKey, label: 'Certificate (AD CS)', color: '#06b6d4' },
-  gpo: { icon: ScrollText, label: 'GPO', color: '#f59e0b' },
-  secret: { icon: FileWarning, label: 'Secrets', color: '#ef4444' },
+  certificate: { icon: FileKey, label: 'Certificate (AD CS)', color: '#06b6d4', preview: true },
+  gpo: { icon: ScrollText, label: 'GPO', color: '#f59e0b', preview: true },
+  secret: { icon: FileWarning, label: 'Secrets', color: '#ef4444', preview: true },
 }
 const SEVERITY_ORDER: Severity[] = ['critical', 'high', 'medium', 'low']
 const SEVERITY_COLORS: Record<Severity, string> = {
@@ -385,6 +389,9 @@ export default function ExposuresPage() {
                 >
                   <Icon className="w-3.5 h-3.5" style={{ color: CATEGORY_META[cat].color }} />
                   {CATEGORY_META[cat].label} ({data.byCategory[cat] ?? 0})
+                  {CATEGORY_META[cat].preview && (
+                    <span className="ms-0.5 px-1 rounded text-[10px] font-semibold bg-[var(--bg-tertiary)] text-[var(--text-tertiary)] uppercase tracking-wide">preview</span>
+                  )}
                 </button>
               )
             })}
@@ -395,6 +402,16 @@ export default function ExposuresPage() {
               </span>
             )}
           </div>
+
+          {category !== 'all' && CATEGORY_META[category]?.preview && (
+            <div className="rounded-lg border border-[var(--color-medium)]/40 bg-[var(--color-medium)]/10 px-3 py-2 text-sm text-[var(--text-secondary)] flex items-start gap-2">
+              <ShieldAlert className="w-4 h-4 mt-0.5 flex-shrink-0 text-[var(--color-medium)]" />
+              <span>
+                <span className="font-medium text-[var(--text-primary)]">{CATEGORY_META[category].label} collector not yet enabled.</span>{' '}
+                Identity exposures are collected live from AD; {CATEGORY_META[category].label} findings require a dedicated collector that isn’t shipped in this release. Any data shown here is sample/demo only.
+              </span>
+            </div>
+          )}
 
           {(data.totalOpen === 0 || displayImpacts.length === 0) && (
             <div className="rounded-xl border border-[var(--border-primary)] bg-[var(--bg-primary)] p-10 text-center">

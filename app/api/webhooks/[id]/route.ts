@@ -4,6 +4,11 @@ import { db } from '@/lib/db'
 import { webhookEndpoints } from '@/lib/db/schema'
 import { eq, and } from 'drizzle-orm'
 import { sendWebhook } from '@/lib/webhooks/sender'
+import { hasRole } from '@/lib/utils/rbac'
+import type { AppRole } from '@/lib/utils/rbac'
+import { assertSafeConnectorUrl } from '@/lib/connectors/url-guard'
+
+const isAdmin = (session: any) => hasRole((session?.user as any)?.appRole as AppRole, 'iam_admin')
 
 export async function GET(
   req: NextRequest,
@@ -25,7 +30,8 @@ export async function GET(
     return NextResponse.json({ error: 'Webhook not found' }, { status: 404 })
   }
 
-  return NextResponse.json(webhook)
+  const { secret, ...rest } = webhook
+  return NextResponse.json({ ...rest, hasSecret: !!secret })
 }
 
 export async function PUT(
@@ -36,10 +42,21 @@ export async function PUT(
   if (!session?.user?.orgId) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
+  if (!isAdmin(session)) {
+    return NextResponse.json({ error: 'Forbidden: iam_admin role required' }, { status: 403 })
+  }
 
   const { id } = params
   const body = await req.json()
   const { name, url, secret, events, enabled } = body
+
+  if (url !== undefined) {
+    try {
+      assertSafeConnectorUrl(url)
+    } catch (e: any) {
+      return NextResponse.json({ error: e.message || 'Invalid webhook URL' }, { status: 400 })
+    }
+  }
 
   const [existing] = await db
     .select()
@@ -75,6 +92,9 @@ export async function DELETE(
   if (!session?.user?.orgId) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
+  if (!isAdmin(session)) {
+    return NextResponse.json({ error: 'Forbidden: iam_admin role required' }, { status: 403 })
+  }
 
   const { id } = params
 
@@ -101,6 +121,9 @@ export async function POST(
   if (!session?.user?.orgId) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
+  if (!isAdmin(session)) {
+    return NextResponse.json({ error: 'Forbidden: iam_admin role required' }, { status: 403 })
+  }
 
   const { id } = params
 
@@ -112,6 +135,13 @@ export async function POST(
 
   if (!webhook) {
     return NextResponse.json({ error: 'Webhook not found' }, { status: 404 })
+  }
+
+  // Re-validate at send time: guards legacy rows stored before the SSRF check existed.
+  try {
+    assertSafeConnectorUrl(webhook.url)
+  } catch (e: any) {
+    return NextResponse.json({ error: e.message || 'Webhook URL is not allowed' }, { status: 400 })
   }
 
   const testPayload = {

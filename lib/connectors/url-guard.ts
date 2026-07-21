@@ -70,7 +70,7 @@ export function assertSafeConnectorUrl(raw: string): void {
 }
 
 // Config keys that hold an endpoint the app will make outbound requests to.
-const URL_CONFIG_KEYS = ['baseurl', 'url', 'host', 'endpoint', 'tokenurl', 'server', 'instanceurl', 'domain', 'address']
+const URL_CONFIG_KEYS = ['baseurl', 'url', 'host', 'endpoint', 'tokenurl', 'server', 'instanceurl', 'domain', 'address', 'vaultaddr']
 
 /** Validate every URL-bearing field in a connector config object. */
 export function validateConnectorConfig(config: unknown): void {

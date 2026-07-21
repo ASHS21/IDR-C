@@ -3,12 +3,18 @@ import { auth } from '@/lib/auth/config'
 import { db } from '@/lib/db'
 import { integrationSources } from '@/lib/db/schema'
 import { executeSync } from '@/lib/connectors/sync-engine'
+import { hasRole } from '@/lib/utils/rbac'
+import type { AppRole } from '@/lib/utils/rbac'
 
 export async function POST(req: NextRequest) {
   try {
     const session = await auth()
     if (!session?.user?.orgId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+    // Bulk-imports/upserts the core identity dataset — restrict to integration admins.
+    if (!hasRole((session.user as any).appRole as AppRole, 'iam_admin')) {
+      return NextResponse.json({ error: 'Forbidden: iam_admin role required' }, { status: 403 })
     }
 
     const body = await req.json().catch(() => null)
