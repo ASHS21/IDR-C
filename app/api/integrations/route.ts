@@ -6,6 +6,7 @@ import { eq } from 'drizzle-orm'
 import { hasRole } from '@/lib/utils/rbac'
 import type { AppRole } from '@/lib/utils/rbac'
 import { encryptCredentials, safeDecryptCredentials } from '@/lib/crypto/credentials'
+import { validateConnectorConfig } from '@/lib/connectors/url-guard'
 
 export async function GET() {
   const session = await auth()
@@ -36,6 +37,13 @@ export async function POST(req: NextRequest) {
 
     if (!name || !type) {
       return NextResponse.json({ error: 'Missing name or type' }, { status: 400 })
+    }
+
+    // SSRF guard: reject endpoints pointing at loopback / link-local / metadata
+    try {
+      validateConnectorConfig(config)
+    } catch (e: any) {
+      return NextResponse.json({ error: e.message || 'Invalid connector endpoint' }, { status: 400 })
     }
 
     // Encrypt credentials before storage
