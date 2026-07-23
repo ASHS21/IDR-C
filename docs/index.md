@@ -28,6 +28,9 @@
 - [Violations API](./api-reference/violations.md)
 - [Actions API](./api-reference/actions.md)
 
+## Architecture
+- [Solution Architecture](./architecture/solution-architecture.md) — enterprise network placement, components, data flows, HA/DR, air-gap, compliance
+
 ## Deployment
 - [Requirements](./deployment/requirements.md)
 - [Docker](./deployment/docker.md)
