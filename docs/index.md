@@ -30,6 +30,7 @@
 
 ## Architecture
 - [Solution Architecture](./architecture/solution-architecture.md) — enterprise network placement, components, data flows, HA/DR, air-gap, compliance
+- [Service Architecture (ITIL 4)](./architecture/service-architecture-itil.md) — service catalogue, four dimensions, value chain, design/transition/operation practices, CMDB, SLAs, incident/change/problem, CSI, risk register
 
 ## Deployment
 - [Requirements](./deployment/requirements.md)
